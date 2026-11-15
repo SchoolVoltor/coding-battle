@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b241e">
+<title>Танкова Арена — Майстерня</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/blockly@12.5.1/blockly_compressed.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@12.5.1/blocks_compressed.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@12.5.1/python_compressed.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@12.5.1/msg/uk.js"></script>
+<script src="engine.js"></script>
+<script src="blocks.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">🛡️ Танкова Арена <small>Майстерня</small></div>
+  <div class="spacer"></div>
+  <div class="chip" id="botChip" title="Мій танк"><span class="dot" id="botDot"></span><span id="botName">Мій танк</span></div>
+</header>
+
+<main>
+  <!-- БЛОКИ -->
+  <section class="tab full active" id="tab-blocks">
+    <div id="blockly"></div>
+    <div class="over" id="blocksOff" hidden>
+      <div>
+        <p style="font-size:18px">🐍 Твій танк зараз програмується на <b>Python</b>.</p>
+        <p class="muted">Блоки збережені, але в бою використовується код із вкладки «Код».</p>
+        <button class="primary" id="backToBlocks">↩ Повернутися до блоків</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- КОД -->
+  <section class="tab" id="tab-code">
+    <div class="pad" id="codeBlocksView">
+      <div class="notice">Це Python-код, який автоматично зроблено з твоїх блоків. Подивись, як блоки перетворюються на справжню програму!</div>
+      <pre class="code" id="genCode"></pre>
+      <p class="muted">Хочеш писати сам? Код вище стане твоєю програмою, а блоки більше не впливатимуть на танк.</p>
+      <button class="warn" id="toPython">✏️ Писати далі на Python</button>
+    </div>
+    <div id="codePyView" hidden style="display:flex;flex-direction:column;height:100%;padding:10px;gap:6px;max-width:980px;margin:0 auto">
+      <div class="row" style="justify-content:space-between">
+        <div id="pyStatus" class="okmsg">✓ Помилок немає</div>
+        <div class="row">
+          <button class="small" id="pyUndo" title="Скасувати">↶</button>
+          <button class="small" id="pyCheck">✔ Перевірити</button>
+          <button class="small ghost" id="pyToBlocks">До блоків</button>
+        </div>
+      </div>
+      <div class="keys" id="keys"></div>
+      <div style="flex:1;min-height:200px">
+        <div class="editor"><div class="gutter" id="gutter"></div><textarea id="py" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ТРЕНУВАННЯ -->
+  <section class="tab" id="tab-train">
+    <div class="pad">
+      <div class="card">
+        <h3>З ким тренуємось?</h3>
+        <div class="opp" id="oppList"></div>
+        <p class="muted" style="margin:8px 0 0;font-size:13px">Можна обрати кількох — буде бій усіх проти всіх. Ботів друзів додай у вкладці «Здати».</p>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <button class="primary" id="startBtn">▶ Почати бій</button>
+        <button id="pauseBtn" disabled>⏸</button>
+        <select id="speedSel" style="width:auto">
+          <option value="0.5">×0.5</option><option value="1" selected>×1</option><option value="2">×2</option><option value="4">×4</option><option value="max">⚡ макс</option>
+        </select>
+        <span class="muted" id="tickInfo"></span>
+      </div>
+      <div class="arena-wrap" id="arenaWrap"><canvas class="arena" id="cv"></canvas></div>
+      <div id="banner"></div>
+      <div class="card" style="margin-top:12px">
+        <div class="score" id="score"></div>
+      </div>
+      <div class="card">
+        <h3>📝 Журнал мого танка</h3>
+        <div class="log" id="log"><span class="sys">Тут з’являться повідомлення з print() і помилки.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ЗДАТИ -->
+  <section class="tab" id="tab-send">
+    <div class="pad">
+      <div class="card">
+        <h3>👤 Про мене і мій танк</h3>
+        <div class="grid2">
+          <div><label>Ім’я та прізвище</label><input type="text" id="fAuthor" maxlength="40" placeholder="Олена Коваль"></div>
+          <div><label>Клас</label><input type="text" id="fCls" maxlength="10" placeholder="8-А"></div>
+          <div><label>Назва танка</label><input type="text" id="fName" maxlength="30" placeholder="Гроза"></div>
+          <div><label>Колір</label><div class="palette" id="palette"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>✅ Перевірка перед здачею</h3>
+        <div id="checks"></div>
+        <div class="row" style="margin-top:10px"><button class="primary" id="makeCode">📦 Підготувати бота до здачі</button></div>
+        <div id="sendBox" hidden>
+          <label>Код твого бота</label>
+          <textarea id="botCode" readonly rows="4" class="code" style="font-size:12px;word-break:break-all;white-space:pre-wrap"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button class="primary" id="copyCode">📋 Копіювати</button>
+            <button id="shareCode">📤 Поділитися</button>
+            <button id="mailCode">✉️ Надіслати вчителю</button>
+            <button id="dlCode">💾 Файл</button>
+          </div>
+          <p class="muted" style="font-size:13px">Надішли цей код учителю (пошта, Telegram, Viber — будь-як). Змінив танк — підготуй і надішли код знову: у турнірі буде остання версія.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📥 Бот друга або мій з іншого телефона</h3>
+        <textarea id="importText" rows="3" placeholder="Встав сюди код бота (починається з TNK…)" class="code" style="font-size:12px"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="addFriend">➕ Додати як суперника</button>
+          <button id="openOwn">📂 Відкрити як мій танк</button>
+          <label class="row" style="margin:0"><input type="file" id="importFile" accept=".json,.txt,.tank" hidden><span><button type="button" onclick="document.getElementById('importFile').click()">📄 З файлу</button></span></label>
+        </div>
+        <div id="friends" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h3>🗑 Почати спочатку</h3>
+        <p class="muted">Новий танк зі стартовою програмою. Поточний буде видалено з цього телефона.</p>
+        <button id="resetAll">Новий танк</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ДОВІДКА -->
+  <section class="tab" id="tab-help">
+    <div class="pad help" id="helpBox"></div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="blocks" class="active"><span class="ic">🧩</span>Блоки</button>
+  <button data-tab="code"><span class="ic">🐍</span>Код</button>
+  <button data-tab="train"><span class="ic">⚔️</span>Тренування</button>
+  <button data-tab="send"><span class="ic">📤</span>Здати</button>
+  <button data-tab="help"><span class="ic">❓</span>Довідка</button>
+</nav>
+
+<div class="modal" id="welcome">
+  <div class="card">
+    <h2>👋 Вітаю в Танковій Арені!</h2>
+    <p>Ти програмуєш танк, а потім він сам б’ється з танками однокласників. Керувати ним у бою не можна — усе вирішує твоя програма.</p>
+    <label>Ім’я та прізвище</label><input type="text" id="wAuthor" maxlength="40">
+    <div class="grid2">
+      <div><label>Клас</label><input type="text" id="wCls" maxlength="10" placeholder="8-А"></div>
+      <div><label>Назва танка</label><input type="text" id="wName" maxlength="30" placeholder="Гроза"></div>
+    </div>
+    <label>Як програмуватимеш?</label>
+    <div class="row">
+      <button class="primary" id="wBlocks">🧩 Блоками</button>
+      <button class="warn" id="wPython">🐍 На Python</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== Налаштування для вчителя ===== */
+const TEACHER_EMAIL = 'vkusiak@chern12.ukr.education';
+
+/* ===== Стан ===== */
+const T = Tanky;
+const COLORS = ['#4caf50', '#03a9f4', '#e91e63', '#ff9800', '#9c27b0', '#ffeb3b', '#00bcd4', '#f44336', '#8bc34a', '#3f51b5', '#795548', '#ffffff'];
+const KEY = 'tanky.workshop.v1';
+let S = load();
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v === 1) return s; } catch (e) {}
+  return { v: 1, name: '', author: '', cls: '', color: COLORS[Math.floor(Math.random() * COLORS.length)], mode: 'blocks', blocks: null, python: T.STARTER_PY, friends: [], opp: ['target'], fresh: true };
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+const $ = id => document.getElementById(id);
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+/* ===== Вкладки ===== */
+let curTab = 'blocks';
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.tab); });
+function showTab(t) {
+  curTab = t;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.querySelectorAll('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + t));
+  if (t === 'blocks' && ws) setTimeout(() => Blockly.svgResize(ws), 0);
+  if (t === 'code') renderCodeTab();
+  if (t === 'train') { renderOpp(); player && player._resize(); }
+  if (t === 'send') renderSend();
+}
+
+/* ===== Шапка ===== */
+function renderChip() {
+  $('botDot').style.background = S.color;
+  $('botName').textContent = (S.name || 'Мій танк') + (S.mode === 'python' ? ' · 🐍' : ' · 🧩');
+}
+$('botChip').onclick = () => showTab('send');
+
+/* ===== Blockly ===== */
+let ws = null, blocklyOk = typeof Blockly !== 'undefined' && typeof python !== 'undefined';
+function initBlockly() {
+  if (!blocklyOk) { $('blocksOff').hidden = false; $('blocksOff').innerHTML = '<div><p>Не вдалося завантажити блоки (немає інтернету?).</p><p class="muted">Можна програмувати на Python у вкладці «Код».</p></div>'; return; }
+  TankBlocks.setupTankBlocks(Blockly, python);
+  const theme = Blockly.Theme.defineTheme('tanky', {
+    base: Blockly.Themes.Classic,
+    componentStyles: { workspaceBackgroundColour: '#16201a', toolboxBackgroundColour: '#1b241e', toolboxForegroundColour: '#e8f0ea', flyoutBackgroundColour: '#232f27', flyoutForegroundColour: '#e8f0ea', flyoutOpacity: 0.97, scrollbarColour: '#3a4a3f', insertionMarkerColour: '#fff', insertionMarkerOpacity: 0.3 },
+    fontStyle: { family: 'system-ui, sans-serif', size: 12 },
+  });
+  const small = window.innerWidth < 600;
+  ws = Blockly.inject('blockly', {
+    toolbox: TankBlocks.TOOLBOX, renderer: 'zelos', theme,
+    zoom: { controls: true, wheel: true, startScale: small ? 0.62 : 0.8, maxScale: 2, minScale: 0.3, scaleSpeed: 1.15, pinch: true },
+    move: { scrollbars: true, drag: true, wheel: true },
+    media: 'https://cdn.jsdelivr.net/npm/blockly@12.5.1/media/', sounds: false,
+    trashcan: true, grid: { spacing: 24, length: 2, colour: '#22302a', snap: true },
+  });
+  try { Blockly.serialization.workspaces.load(S.blocks || TankBlocks.STARTER_BLOCKS, ws); }
+  catch (e) { Blockly.serialization.workspaces.load(TankBlocks.STARTER_BLOCKS, ws); }
+  ws.addChangeListener(e => {
+    if (e.isUiEvent) return;
+    clearTimeout(initBlockly.t);
+    initBlockly.t = setTimeout(() => { S.blocks = Blockly.serialization.workspaces.save(ws); save(); }, 400);
+  });
+}
+function blocksPython() {
+  if (!ws) return { code: S.python || T.STARTER_PY, loose: 0 };
+  return TankBlocks.generatePython(Blockly, python, ws);
+}
+function currentCode() { return S.mode === 'python' ? S.python : blocksPython().code; }
+function setMode(m) {
+  S.mode = m; save(); renderChip();
+  $('blocksOff').hidden = blocklyOk ? m !== 'python' : false;
+  renderCodeTab();
+}
+$('backToBlocks').onclick = () => {
+  if (!confirm('Повернутися до блоків? Твій Python-код збережеться, але в бою знову працюватимуть блоки.')) return;
+  setMode('blocks'); showTab('blocks');
+};
+$('pyToBlocks').onclick = () => $('backToBlocks').onclick();
+$('toPython').onclick = () => {
+  if (!confirm('Перейти на Python? Код з’явиться в редакторі, далі ти пишеш сам. Блоки залишаться, але не впливатимуть на танк.')) return;
+  S.python = blocksPython().code; setMode('python'); renderCodeTab(); ed.value = S.python; edChanged();
+};
+
+/* ===== Вкладка Код ===== */
+function renderCodeTab() {
+  const py = S.mode === 'python';
+  $('codeBlocksView').hidden = py;
+  $('codePyView').hidden = !py;
+  $('codePyView').style.display = py ? 'flex' : 'none';
+  if (!py) {
+    const r = blocksPython();
+    $('genCode').textContent = r.code + (r.loose ? `\n# ⚠ ${r.loose} блок(и) лежать окремо і не працюють — постав їх у «коли …»` : '');
+  } else { if (ed.value !== S.python) { ed.value = S.python; } edChanged(); }
+}
+const ed = $('py');
+const hist = [];
+function edChanged(push) {
+  if (push !== false) { if (hist[hist.length - 1] !== S.python) hist.push(S.python); if (hist.length > 100) hist.shift(); }
+  S.python = ed.value; save();
+  const lines = ed.value.split('\n').length;
+  const r = T.compileBot(ed.value);
+  const errLine = r.ok ? 0 : r.error.line;
+  let g = '';
+  for (let i = 1; i <= lines; i++) g += `<div${i === errLine ? ' class="err"' : ''}>${i}</div>`;
+  $('gutter').innerHTML = g;
+  $('gutter').scrollTop = ed.scrollTop;
+  const st = $('pyStatus');
+  if (r.ok) { st.className = 'okmsg'; st.textContent = '✓ Помилок немає'; }
+  else { st.className = 'errmsg'; st.textContent = `✗ ${r.error.line ? 'Рядок ' + r.error.line + ': ' : ''}${r.error.msg}`; }
+}
+ed.addEventListener('input', () => { clearTimeout(edChanged.t); edChanged.t = setTimeout(edChanged, 250); });
+ed.addEventListener('scroll', () => { $('gutter').scrollTop = ed.scrollTop; });
+ed.addEventListener('keydown', e => {
+  if (e.key === 'Tab') { e.preventDefault(); insert('    '); }
+  if (e.key === 'Enter') { // автовідступ
+    e.preventDefault();
+    const v = ed.value, p = ed.selectionStart;
+    const ls = v.lastIndexOf('\n', p - 1) + 1, line = v.slice(ls, p);
+    let ind = line.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(line)) ind += '    ';
+    insert('\n' + ind);
+  }
+});
+function insert(text, back = 0) {
+  ed.focus();
+  const s = ed.selectionStart, e = ed.selectionEnd;
+  ed.setRangeText(text, s, e, 'end');
+  if (back) ed.selectionStart = ed.selectionEnd = ed.selectionStart - back;
+  edChanged();
+}
+$('pyUndo').onclick = () => { if (hist.length) { ed.value = hist.pop(); edChanged(false); } };
+$('pyCheck').onclick = () => { edChanged(); const r = T.compileBot(ed.value); toast(r.ok ? '✓ Програма без помилок' : '✗ Є помилка — дивись червоний рядок'); if (!r.ok && r.error.line) goLine(r.error.line); };
+function goLine(n) {
+  const lines = ed.value.split('\n'); let p = 0; for (let i = 0; i < n - 1; i++) p += lines[i].length + 1;
+  ed.focus(); ed.setSelectionRange(p, p + (lines[n - 1] || '').length);
+  ed.scrollTop = Math.max(0, (n - 4) * 21);
+}
+const KEYS = [['⇥', '    '], [':', ':'], ['( )', '()', 1], ['_', '_'], ['=', ' = '], ['==', ' == '], ['"', '""', 1], ['#', '# '],
+  ['вперед', 'вперед()', 1], ['назад', 'назад()', 1], ['праворуч', 'праворуч()', 1], ['ліворуч', 'ліворуч()', 1],
+  ['гармата →', 'гармата_праворуч()', 1], ['вогонь', 'вогонь()', 1], ['навести', 'навести_на_ворога()'], ['if', 'if :', 1], ['while', 'while True:'],
+  ['def', 'def ():', 3], ['print', 'print()', 1]];
+$('keys').innerHTML = KEYS.map((k, i) => `<button data-i="${i}">${esc(k[0])}</button>`).join('');
+$('keys').addEventListener('mousedown', e => e.preventDefault());
+$('keys').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const k = KEYS[+b.dataset.i]; insert(k[1], k[2] || 0); });
+
+/* ===== Тренування ===== */
+let player = null, battle = null, seedCounter = Date.now() % 100000;
+function oppPool() {
+  return [...T.BUILTIN_BOTS.map(b => ({ ...b, key: b.id, label: `${b.name} <span class="badge">${b.level}</span>` })),
+    ...S.friends.map((f, i) => ({ ...f, key: 'f' + i, label: `${esc(f.name)} <span class="badge">${esc(f.author || 'друг')}</span>` }))];
+}
+function renderOpp() {
+  $('oppList').innerHTML = oppPool().map(o =>
+    `<label><input type="checkbox" value="${o.key}" ${S.opp.includes(o.key) ? 'checked' : ''}><span class="dot" style="background:${o.color}"></span>${o.label}</label>`).join('');
+}
+$('oppList').addEventListener('change', () => {
+  S.opp = [...$('oppList').querySelectorAll('input:checked')].map(i => i.value); save();
+});
+function myBotSpec() { return { name: S.name || 'Мій танк', color: S.color, code: currentCode() }; }
+function logLine(text, kind) {
+  const el = $('log');
+  if (el.dataset.fresh) { el.innerHTML = ''; delete el.dataset.fresh; }
+  const d = document.createElement('div'); d.className = kind; d.textContent = text; el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+$('startBtn').onclick = () => {
+  const pool = oppPool();
+  const opps = pool.filter(o => S.opp.includes(o.key));
+  if (!opps.length) { toast('Обери хоча б одного суперника'); return; }
+  const me = myBotSpec();
+  const c = T.compileBot(me.code);
+  $('log').innerHTML = ''; $('log').dataset.fresh = '';
+  if (!c.ok) {
+    logLine(`Помилка в програмі${c.error.line ? ' (рядок ' + c.error.line + ')' : ''}: ${c.error.msg}`, 'error');
+    toast('У програмі помилка — танк не зможе рухатись');
+  }
+  // однакові кольори — трохи змінимо, щоб розрізняти
+  const specs = [me, ...opps.map(o => ({ name: o.name, color: o.color, code: o.code }))];
+  battle = new T.Battle(specs, { seed: ++seedCounter, onLog: (i, t, k) => { if (i === 0 || k === 'error') logLine((i === 0 ? '' : specs[i].name + ': ') + t, k); } });
+  $('banner').innerHTML = '';
+  player.speed = $('speedSel').value === 'max' ? 'max' : +$('speedSel').value;
+  player.load(battle);
+  $('pauseBtn').disabled = false; $('pauseBtn').textContent = '⏸';
+  $('startBtn').textContent = '🔁 Ще бій';
+  $('arenaWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+$('pauseBtn').onclick = () => { if (!player.battle) return; player.paused = !player.paused; $('pauseBtn').textContent = player.paused ? '▶' : '⏸'; };
+$('speedSel').onchange = () => { player.speed = $('speedSel').value === 'max' ? 'max' : +$('speedSel').value; };
+function renderScore(b) {
+  $('tickInfo').textContent = `хід ${b.tick}`;
+  $('score').innerHTML = b.bots.map((t, i) => `<div class="r ${t.alive ? '' : 'dead'}"><span class="dot" style="background:${t.color}"></span><span>${esc(t.name)}${i === 0 ? ' (я)' : ''}${t.crashed ? ' ⚠' : ''}</span><span class="n" style="text-align:right">${Math.max(0, t.energy).toFixed(0)}</span><div class="bar"><i style="width:${Math.max(0, Math.min(100, t.energy))}%;background:${t.color}"></i></div></div>`).join('');
+}
+function onEnd(res) {
+  $('pauseBtn').disabled = true;
+  const me = res.stats[0];
+  let cls = 'lose', txt;
+  if (res.winner === 0) { cls = ''; txt = '🏆 Перемога!'; }
+  else if (res.draw && me.alive) { cls = 'draw'; txt = '🤝 Нічия (час вийшов)'; }
+  else txt = `😵 Поразка. Місце: ${res.ranking.indexOf(0) + 1} з ${res.stats.length}`;
+  $('banner').innerHTML = `<div class="banner ${cls}">${txt}</div><p class="muted" style="text-align:center;margin-top:-4px">Влучань: ${me.hits} з ${me.shots} · Завдано шкоди: ${me.damage} · Очки: ${me.score}</p>`;
+}
+
+/* ===== Здати ===== */
+function renderPalette() {
+  $('palette').innerHTML = COLORS.map(c => `<button style="background:${c}" class="${c === S.color ? 'sel' : ''}" data-c="${c}" aria-label="колір"></button>`).join('');
+}
+$('palette').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.color = b.dataset.c; save(); renderPalette(); renderChip(); };
+for (const [id, k] of [['fAuthor', 'author'], ['fCls', 'cls'], ['fName', 'name']]) {
+  $(id).addEventListener('input', () => { S[k] = $(id).value.trim(); save(); renderChip(); $('sendBox').hidden = true; });
+}
+function renderSend() {
+  $('fAuthor').value = S.author; $('fCls').value = S.cls; $('fName').value = S.name;
+  renderPalette(); renderFriends(); runChecks();
+}
+let checkState = {};
+function runChecks() {
+  const code = currentCode();
+  const c = T.compileBot(code);
+  checkState = { profile: !!(S.author && S.cls && S.name), compiles: c.ok, events: c.ok && c.events.length > 0 };
+  // кваліфікація: перемогти «Мішень» хоча б у 2 з 3 боїв
+  let wins = 0;
+  if (c.ok) for (let s = 1; s <= 3; s++) { const r = new T.Battle([{ name: 'я', code }, T.BUILTIN_BOTS[0]], { seed: 777 + s }).runToEnd(); if (r.winner === 0) wins++; }
+  checkState.qual = wins >= 2;
+  const row = (ok, t, hint) => `<div style="margin:6px 0">${ok ? '✅' : '⬜'} ${t}${!ok && hint ? `<div class="muted" style="font-size:13px;margin-left:28px">${hint}</div>` : ''}</div>`;
+  $('checks').innerHTML =
+    row(checkState.profile, 'Заповнено ім’я, клас і назву танка', 'Заповни поля вище.') +
+    row(checkState.compiles, 'Програма без помилок', c.ok ? '' : `${c.error.line ? 'Рядок ' + c.error.line + ': ' : ''}${esc(c.error.msg)}`) +
+    row(checkState.events, 'Є хоча б одна подія («коли бій почався», «коли бачу ворога»…)', 'Без подій танк нічого не робитиме.') +
+    row(checkState.qual, `Кваліфікація: перемогти «Мішень» (${wins} з 3)`, 'Твій танк має знаходити ворога і стріляти. Спробуй крутити гармату й стріляти, коли бачиш ворога.');
+}
+$('makeCode').onclick = async () => {
+  runChecks();
+  if (!checkState.profile) { toast('Спершу заповни ім’я, клас і назву'); return; }
+  if (!checkState.compiles) { toast('У програмі є помилка'); return; }
+  if (!checkState.qual && !confirm('Танк ще не пройшов кваліфікацію (не перемагає «Мішень»). Все одно підготувати код?')) return;
+  const bot = { name: S.name, author: S.author, cls: S.cls, color: S.color, league: S.mode, code: currentCode() };
+  const code = await T.encodeBot(bot);
+  $('botCode').value = code; $('sendBox').hidden = false;
+  $('botCode').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch (e) { const ta = $('botCode'); ta.focus(); ta.select(); try { return document.execCommand('copy'); } catch (e2) { return false; } }
+}
+const subj = () => `Танк «${S.name}» — ${S.author}, ${S.cls}`;
+$('copyCode').onclick = async () => toast(await copyText($('botCode').value) ? '📋 Скопійовано' : 'Виділи код і скопіюй вручну');
+$('shareCode').onclick = async () => {
+  const text = `${subj()}\n${$('botCode').value}`;
+  if (navigator.share) { try { await navigator.share({ title: subj(), text }); } catch (e) {} }
+  else toast(await copyText(text) ? '📋 Скопійовано — встав у месенджер' : 'Скопіюй вручну');
+};
+$('mailCode').onclick = () => {
+  location.href = `mailto:${TEACHER_EMAIL}?subject=${encodeURIComponent(subj())}&body=${encodeURIComponent($('botCode').value + '\n')}`;
+};
+$('dlCode').onclick = () => {
+  const blob = new Blob([JSON.stringify({ name: S.name, author: S.author, cls: S.cls, color: S.color, league: S.mode, code: currentCode() }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `${S.cls}_${S.author}_${S.name}.tank.json`.replace(/[\\/:*?"<>|\s]+/g, '_'); a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+async function readImport(text) {
+  text = text.trim();
+  const codes = T.findBotCodes(text);
+  if (codes.length) return Promise.all(codes.map(T.decodeBot));
+  if (text.startsWith('{')) return [T.normBot(JSON.parse(text))];
+  throw new Error('Не знайшов коду бота');
+}
+$('addFriend').onclick = async () => {
+  try {
+    const bots = await readImport($('importText').value);
+    for (const b of bots) { S.friends = S.friends.filter(f => !(f.name === b.name && f.author === b.author)); S.friends.push(b); }
+    save(); $('importText').value = ''; renderFriends(); toast(`➕ Додано: ${bots.map(b => b.name).join(', ')}`);
+  } catch (e) { toast('⚠ ' + e.message); }
+};
+$('openOwn').onclick = async () => {
+  try {
+    const [b] = await readImport($('importText').value);
+    if (!confirm(`Замінити свій танк на «${b.name}»? Поточна програма зникне з цього телефона.`)) return;
+    Object.assign(S, { name: b.name, author: b.author, cls: b.cls, color: b.color, python: b.code });
+    S.mode = 'python';
+    save(); $('importText').value = ''; setMode('python'); renderSend(); toast('📂 Відкрито');
+  } catch (e) { toast('⚠ ' + e.message); }
+};
+$('importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $('importText').value = await f.text(); e.target.value = '';
+  toast('Файл прочитано — обери, що з ним зробити');
+};
+function renderFriends() {
+  $('friends').innerHTML = S.friends.length ? S.friends.map((f, i) =>
+    `<div class="row" style="justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)"><span><span class="dot" style="display:inline-block;background:${f.color}"></span> ${esc(f.name)} <span class="muted">${esc(f.author)} ${esc(f.cls)}</span></span><button class="small ghost" data-del="${i}">✕</button></div>`).join('') : '';
+}
+$('friends').onclick = e => { const b = e.target.closest('[data-del]'); if (!b) return; S.friends.splice(+b.dataset.del, 1); S.opp = S.opp.filter(k => !k.startsWith('f')); save(); renderFriends(); };
+$('resetAll').onclick = () => {
+  if (!confirm('Точно видалити свій танк і почати заново?')) return;
+  const keep = { author: S.author, cls: S.cls, friends: S.friends };
+  localStorage.removeItem(KEY); S = Object.assign(load(), keep, { fresh: false }); save(); location.reload();
+};
+
+/* ===== Довідка ===== */
+function renderHelp() {
+  const ev = Object.entries(T.EVENTS).map(([n, e]) => `<dt>def ${n}():</dt><dd>${e.label}</dd>`).join('');
+  const act = Object.entries(T.API).filter(([, a]) => a.gen).map(([n, a]) => `<dt>${n}(${a.max ? (a.min ? 'n' : '[n]') : ''})</dt><dd>${a.doc}</dd>`).join('');
+  const sens = Object.entries(T.API).filter(([, a]) => !a.gen).map(([n, a]) => `<dt>${n}(${a.max === 2 ? 'a, b' : a.max ? 'текст' : ''})</dt><dd>${a.doc}</dd>`).join('');
+  $('helpBox').innerHTML = `
+  <div class="card"><h2>Як це працює</h2>
+    <p>Твій танк <b>сам</b> виконує програму. На полі ${T.CFG.W}×${T.CFG.H} кроків б’ються кілька танків. У кожного <b>100 енергії</b>. Влучання забирає енергію у ворога, а тобі частину повертає. Постріл теж коштує енергії. Енергія 0 — танк вибув.</p>
+    <p><b>Радар дивиться туди ж, куди гармата.</b> Щоб знайти ворога, крути гармату. Коли радар бачить ворога, спрацьовує подія «коли бачу ворога».</p>
+    <p>Гармата крутиться разом із корпусом, але її можна повертати й окремо. Кути — у градусах: 0 — вгору, 90 — праворуч, 180 — вниз.</p>
+    <p>Якщо довго ніхто не влучає, усі танки поступово втрачають енергію. Тож ховатися весь бій не вийде 😉</p>
+  </div>
+  <div class="card"><h2>Події</h2><p class="muted">Це «коли …»-блоки. Подія з вищим пріоритетом перериває головний цикл, а потім він продовжується з того ж місця.</p><dl>${ev}</dl></div>
+  <div class="card"><h2>Команди (тривають кілька ходів)</h2><dl>${act}</dl></div>
+  <div class="card"><h2>Сенсори (миттєво повертають значення)</h2><dl>${sens}</dl></div>
+  <div class="card"><h2>Приклад на Python</h2><pre class="code">${esc(T.BUILTIN_BOTS[3].code)}</pre>
+    <p class="muted">Підтримується шкільний Python: змінні, if/elif/else, while, for і range, функції def, списки, f-рядки, модулі math і random.</p></div>
+  <div class="card"><h2>Поради</h2><ul>
+    <li>Не стій на місці — по нерухомому танку влучити найлегше.</li>
+    <li>Зблизька стріляй сильніше (вогонь(3)), здалеку — слабше: така куля летить швидше.</li>
+    <li>Отримав влучання — зміни напрям руху.</li>
+    <li>Біля стіни легко застрягнути: від’їжджай назад і повертай.</li>
+  </ul></div>
+  <p class="muted" style="text-align:center">Для вчителя: <a href="arena.html">🏟 Арена боїв</a></p>`;
+}
+
+/* ===== Старт ===== */
+function start() {
+  initBlockly();
+  player = new T.BattlePlayer($('cv'), { onFrame: renderScore, onEnd });
+  ed.value = S.python;
+  setMode(S.mode);
+  renderChip(); renderHelp(); renderOpp();
+  if (!blocklyOk) showTab('code');
+  if (S.fresh) {
+    $('welcome').classList.add('show');
+    $('wAuthor').value = S.author; $('wCls').value = S.cls; $('wName').value = S.name;
+    const done = mode => {
+      S.author = $('wAuthor').value.trim(); S.cls = $('wCls').value.trim(); S.name = $('wName').value.trim() || 'Мій танк';
+      S.fresh = false; save(); $('welcome').classList.remove('show');
+      if (mode === 'python') { S.python = T.STARTER_PY; ed.value = S.python; setMode('python'); showTab('code'); }
+      else { setMode('blocks'); showTab('blocks'); }
+      renderChip();
+    };
+    $('wBlocks').onclick = () => done('blocks');
+    $('wPython').onclick = () => done('python');
+  } else if (S.mode === 'python') showTab('code');
+}
+start();
+</script>
+</body>
+</html>

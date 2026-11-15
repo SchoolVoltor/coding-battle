@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b241e">
+<title>Танкова Арена — Бої</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏟️</text></svg>">
+<link rel="stylesheet" href="style.css">
+<script src="engine.js"></script>
+<style>
+  body { height: auto; min-height: 100dvh; overflow: auto; }
+  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 14px; padding: 14px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .side { position: sticky; top: 14px; max-height: calc(100dvh - 28px); overflow: auto; }
+  @media (max-width: 900px) { .side { position: static; max-height: none; } }
+  .bot { display: grid; grid-template-columns: 22px 14px 1fr auto; gap: 8px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--line); font-size: 14px; }
+  .bot .who { overflow: hidden; }
+  .bot .who b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bot .who small { color: var(--muted); }
+  .bot.err b { color: var(--danger); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: transparent; }
+  .seg button.on { background: var(--accent); color: #102010; font-weight: 700; }
+  .mtabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .mtabs button.on { background: var(--accent); color: #102010; border-color: var(--accent); font-weight: 700; }
+  .stage { display: grid; grid-template-columns: 1fr 230px; gap: 12px; }
+  @media (max-width: 1100px) { .stage { grid-template-columns: 1fr; } }
+  #cv { max-width: min(100%, calc(78vh * 4 / 3)); margin: 0 auto; }
+  .fs:fullscreen #cv { max-width: min(100%, calc(92vh * 4 / 3)); }
+  .fs:fullscreen { background: #0b100d; padding: 2vh 2vw; display: grid; grid-template-columns: 1fr 260px; gap: 16px; align-items: center; }
+  .fs:fullscreen canvas.arena { max-height: 92vh; object-fit: contain; }
+  .fs:fullscreen .score .r { font-size: 18px; }
+  .serieshead { font-size: 18px; font-weight: 800; text-align: center; margin-bottom: 8px; min-height: 26px; }
+  .progress { height: 10px; background: #0d130f; border-radius: 6px; overflow: hidden; margin: 10px 0; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .1s; }
+  .bracket { display: flex; gap: 22px; overflow-x: auto; padding-bottom: 10px; }
+  .round { display: flex; flex-direction: column; justify-content: space-around; gap: 14px; min-width: 210px; }
+  .round h4 { margin: 0 0 4px; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .5px; }
+  .match { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .match .p { display: flex; align-items: center; gap: 7px; padding: 6px 9px; font-size: 14px; }
+  .match .p + .p { border-top: 1px solid var(--line); }
+  .match .p.win { background: #24361f; font-weight: 700; }
+  .match .p .sc { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .match .act { display: flex; gap: 4px; padding: 5px; border-top: 1px solid var(--line); background: #1b241e; }
+  .match .act button { flex: 1; padding: 4px; font-size: 12px; }
+  .champ { text-align: center; padding: 18px; font-size: 22px; font-weight: 800; background: linear-gradient(90deg, #8a6d00, #c79100); border-radius: 12px; color: #fff; margin-bottom: 12px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  .mlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; margin-top: 8px; }
+  .mlist div { background: var(--panel2); border-radius: 8px; padding: 6px 9px; display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .mlist div button { margin-left: auto; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">🏟️ Танкова Арена <small>Бої та турніри</small></div>
+  <div class="spacer"></div>
+  <label class="row" style="margin:0;color:var(--muted)">Ключ турніру <input type="text" id="tkey" style="width:110px" title="Однаковий ключ = однакові бої. Змініть, щоб переграти турнір з іншими стартовими позиціями."></label>
+  <a href="index.html" class="chip" style="text-decoration:none">🛠 Майстерня</a>
+</header>
+
+<div class="layout">
+  <!-- УЧАСНИКИ -->
+  <aside class="card side">
+    <h3>👥 Учасники <span class="muted" id="cnt"></span></h3>
+    <textarea id="paste" rows="3" class="code" style="font-size:12px" placeholder="Вставте коди ботів (TNK…). Можна вставити одразу багато — хоч увесь чат із месенджера."></textarea>
+    <div class="row" style="margin:8px 0">
+      <button class="primary" id="addPaste">➕ Додати</button>
+      <button id="addFile">📄 Файли</button>
+      <input type="file" id="files" multiple accept=".json,.txt,.tank" hidden>
+      <button id="addBuiltin" title="Мішень, Крутько, Стіноход, Мисливець">🤖 Вбудовані</button>
+    </div>
+    <div class="row" style="margin-bottom:6px">
+      <div class="seg" id="league">
+        <button data-l="all" class="on">Усі</button><button data-l="blocks">🧩 Блоки</button><button data-l="python">🐍 Python</button>
+      </div>
+    </div>
+    <div class="row" style="justify-content:space-between;margin-bottom:4px">
+      <span class="muted" style="font-size:13px">✔ — бере участь</span>
+      <span class="row"><button class="small ghost" id="selAll">усі</button><button class="small ghost" id="selNone">жодного</button></span>
+    </div>
+    <div id="roster"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="small" id="exportRoster">💾 Зберегти список</button>
+      <button class="small" id="importRoster">📂 Відкрити список</button>
+      <input type="file" id="rosterFile" accept=".json" hidden>
+      <button class="small ghost" id="clearRoster">🗑 Очистити</button>
+    </div>
+  </aside>
+
+  <!-- ОСНОВНА ЧАСТИНА -->
+  <section>
+    <div class="mtabs" id="mtabs">
+      <button data-m="battle" class="on">⚔️ Бій</button>
+      <button data-m="rr">📊 Кругова система</button>
+      <button data-m="po">🏆 Плей-оф</button>
+    </div>
+
+    <!-- БІЙ -->
+    <div id="m-battle">
+      <div class="card">
+        <div class="row">
+          <button class="primary" id="royale">👑 Бій усіх обраних</button>
+          <button id="pause" disabled>⏸</button>
+          <select id="speed" style="width:auto"><option value="0.5">×0.5</option><option value="1" selected>×1</option><option value="2">×2</option><option value="4">×4</option><option value="max">⚡ макс</option></select>
+          <label class="row" style="margin:0;color:var(--muted)"><input type="checkbox" id="scanCb" checked> промені радара</label>
+          <div class="spacer"></div>
+          <button id="fsBtn">⛶ На весь екран</button>
+        </div>
+      </div>
+      <div class="fs stage" id="fsWrap">
+        <div>
+          <div class="serieshead" id="series"></div>
+          <canvas class="arena" id="cv"></canvas>
+          <div id="banner"></div>
+        </div>
+        <div class="card score" id="score" style="align-self:start"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>📝 Журнал</h3>
+        <div class="log" id="log"><span class="sys">Помилки в програмах учасників з’являться тут.</span></div>
+      </div>
+    </div>
+
+    <!-- КРУГОВА -->
+    <div id="m-rr" hidden>
+      <div class="card">
+        <p class="muted" style="margin-top:0">Кожен б’ється з кожним один на один. Перемога в раунді — 2 очки, нічия — 1. Бої розраховуються миттєво, а будь-який із них можна переглянути.</p>
+        <div class="row">
+          <label class="row" style="margin:0">Раундів на пару
+            <select id="rrRounds" style="width:auto"><option>1</option><option selected>3</option><option>5</option></select></label>
+          <button class="primary" id="rrRun">▶ Розрахувати турнір</button>
+          <button id="rrCancel" hidden>Зупинити</button>
+        </div>
+        <div class="progress" id="rrProg" hidden><i></i></div>
+        <div class="muted" id="rrInfo"></div>
+      </div>
+      <div class="card" id="rrTable" hidden></div>
+    </div>
+
+    <!-- ПЛЕЙ-ОФ -->
+    <div id="m-po" hidden>
+      <div class="card">
+        <p class="muted" style="margin-top:0">Сітка на вибування, матчі до двох перемог. Якщо кругову систему вже розраховано для цих учасників, сильніші отримують вищий посів.</p>
+        <div class="row">
+          <label class="row" style="margin:0">Учасників
+            <select id="poSize" style="width:auto"><option value="0">усі обрані</option><option>4</option><option>8</option><option>16</option><option>32</option></select></label>
+          <button class="primary" id="poMake">🧩 Скласти сітку</button>
+          <button id="poAll" disabled>⚡ Розрахувати всі матчі</button>
+        </div>
+      </div>
+      <div id="poView"></div>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="codeModal">
+  <div class="card" style="max-width:720px">
+    <div class="row" style="justify-content:space-between"><h3 id="cmTitle" style="margin:0"></h3><button class="small" onclick="document.getElementById('codeModal').classList.remove('show')">✕</button></div>
+    <div id="cmStatus" style="margin:8px 0"></div>
+    <pre class="code" id="cmCode" style="max-height:60dvh"></pre>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const T = Tanky;
+const KEY = 'tanky.arena.v1';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2600); }
+
+let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v === 1) return s; } catch (e) {} return null; })()
+  || { v: 1, roster: [], league: 'all', key: String(new Date().getFullYear()), rr: null, po: null };
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('⚠ Не вдалося зберегти (забагато даних?)'); } }
+
+/* ===== Учасники ===== */
+function addBots(bots, builtin = false) {
+  let added = 0, updated = 0;
+  for (const b of bots) {
+    const entry = { id: T.botId(b), name: b.name, author: b.author || '', cls: b.cls || '', color: b.color, league: builtin ? 'builtin' : b.league, code: b.code, time: b.time || 0, sel: true };
+    const i = S.roster.findIndex(r => r.name === entry.name && r.author === entry.author && r.cls === entry.cls);
+    if (i >= 0) {
+      if (S.roster[i].id === entry.id) continue;
+      if ((S.roster[i].time || 0) > entry.time && entry.time) continue; // старіша версія
+      entry.sel = S.roster[i].sel; S.roster[i] = entry; updated++;
+    } else { S.roster.push(entry); added++; }
+  }
+  save(); renderRoster();
+  return { added, updated };
+}
+$('addPaste').onclick = async () => {
+  const text = $('paste').value;
+  const codes = T.findBotCodes(text);
+  const bots = [], bad = [];
+  for (const c of codes) { try { bots.push(await T.decodeBot(c)); } catch (e) { bad.push(c.slice(0, 12)); } }
+  if (!codes.length && text.trim().startsWith('{')) { try { bots.push(T.normBot(JSON.parse(text))); } catch (e) { bad.push('json'); } }
+  if (!bots.length) { toast(bad.length ? '⚠ Коди пошкоджені — попросіть учня надіслати ще раз' : 'Не знайдено жодного коду (TNK…)'); return; }
+  const r = addBots(bots);
+  $('paste').value = '';
+  toast(`Додано: ${r.added}, оновлено: ${r.updated}${bad.length ? `, пошкоджених: ${bad.length}` : ''}`);
+};
+$('addFile').onclick = () => $('files').click();
+$('files').onchange = async e => {
+  const bots = [];
+  for (const f of e.target.files) {
+    const txt = await f.text();
+    try {
+      const codes = T.findBotCodes(txt);
+      if (codes.length) for (const c of codes) bots.push(await T.decodeBot(c));
+      else bots.push(T.normBot(JSON.parse(txt)));
+    } catch (err) { toast(`⚠ ${f.name}: ${err.message}`); }
+  }
+  e.target.value = '';
+  const r = addBots(bots); toast(`Додано: ${r.added}, оновлено: ${r.updated}`);
+};
+$('addBuiltin').onclick = () => { const r = addBots(T.BUILTIN_BOTS.map(b => ({ ...b, league: 'builtin' })), true); toast(r.added ? `Додано вбудованих: ${r.added}` : 'Вбудовані боти вже є'); };
+$('league').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.league = b.dataset.l; save(); renderRoster(); };
+$('selAll').onclick = () => { visible().forEach(r => r.sel = true); save(); renderRoster(); };
+$('selNone').onclick = () => { visible().forEach(r => r.sel = false); save(); renderRoster(); };
+function visible() { return S.roster.filter(r => S.league === 'all' || r.league === S.league || r.league === 'builtin'); }
+function pool() { return visible().filter(r => r.sel); }
+function renderRoster() {
+  document.querySelectorAll('#league button').forEach(b => b.classList.toggle('on', b.dataset.l === S.league));
+  const v = visible();
+  $('cnt').textContent = `(${pool().length} з ${v.length})`;
+  $('roster').innerHTML = v.length ? v.map(r => {
+    const c = T.compileBot(r.code);
+    const badge = r.league === 'python' ? '<span class="badge py">Python</span>' : r.league === 'blocks' ? '<span class="badge bl">Блоки</span>' : '<span class="badge">вбуд.</span>';
+    return `<div class="bot ${c.ok ? '' : 'err'}" data-id="${r.id}">
+      <input type="checkbox" ${r.sel ? 'checked' : ''} data-sel>
+      <span class="dot" style="background:${r.color}"></span>
+      <span class="who"><b>${c.ok ? '' : '⚠ '}${esc(r.name)}</b><small>${esc(r.author)} ${esc(r.cls)}</small> ${badge}</span>
+      <span class="row" style="gap:2px"><button class="small ghost" data-view title="Код">👁</button><button class="small ghost" data-del title="Видалити">✕</button></span>
+    </div>`;
+  }).join('') : '<p class="muted">Поки нікого. Вставте коди ботів, які надіслали учні, або додайте вбудованих.</p>';
+}
+$('roster').onclick = e => {
+  const row = e.target.closest('.bot'); if (!row) return;
+  const r = S.roster.find(x => x.id === row.dataset.id);
+  if (e.target.matches('[data-sel]')) { r.sel = e.target.checked; save(); renderRoster(); }
+  if (e.target.closest('[data-del]')) { if (confirm(`Видалити «${r.name}»?`)) { S.roster = S.roster.filter(x => x !== r); save(); renderRoster(); } }
+  if (e.target.closest('[data-view]')) {
+    const c = T.compileBot(r.code);
+    $('cmTitle').innerHTML = `<span class="dot" style="display:inline-block;background:${r.color}"></span> ${esc(r.name)} <span class="muted" style="font-weight:400">${esc(r.author)} ${esc(r.cls)}</span>`;
+    $('cmStatus').innerHTML = c.ok ? '<span class="okmsg">✓ Програма без помилок</span>' : `<span class="errmsg">✗ ${c.error.line ? 'Рядок ' + c.error.line + ': ' : ''}${esc(c.error.msg)}</span>`;
+    $('cmCode').textContent = r.code; $('codeModal').classList.add('show');
+  }
+};
+$('exportRoster').onclick = () => {
+  const blob = new Blob([JSON.stringify({ tankyRoster: 1, roster: S.roster }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `tanky_uchasnyky_${new Date().toISOString().slice(0, 10)}.json`; a.click();
+};
+$('importRoster').onclick = () => $('rosterFile').click();
+$('rosterFile').onchange = async e => {
+  try {
+    const d = JSON.parse(await e.target.files[0].text());
+    if (!d.roster) throw new Error();
+    const r = addBots(d.roster.map(x => ({ ...x })), false);
+    d.roster.forEach(x => { const m = S.roster.find(y => y.id === T.botId(x)); if (m && x.league === 'builtin') m.league = 'builtin'; });
+    save(); renderRoster(); toast(`Додано: ${r.added}, оновлено: ${r.updated}`);
+  } catch (err) { toast('⚠ Це не файл зі списком учасників'); }
+  e.target.value = '';
+};
+$('clearRoster').onclick = () => { if (confirm('Видалити всіх учасників і результати?')) { S.roster = []; S.rr = null; S.po = null; save(); renderRoster(); renderRR(); renderPO(); } };
+
+$('tkey').value = S.key;
+$('tkey').onchange = () => { S.key = $('tkey').value.trim() || '1'; save(); toast('Новий ключ: турніри треба розрахувати заново'); };
+
+/* ===== Режими ===== */
+$('mtabs').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  showMode(b.dataset.m);
+};
+function showMode(m) {
+  document.querySelectorAll('#mtabs button').forEach(x => x.classList.toggle('on', x.dataset.m === m));
+  for (const k of ['battle', 'rr', 'po']) $('m-' + k).hidden = k !== m;
+  if (m === 'battle') player._resize();
+}
+
+/* ===== Бій ===== */
+const player = new T.BattlePlayer($('cv'), { onFrame: renderScore, onEnd: battleEnded });
+let current = null; // {battle, names, series}
+const spec = r => ({ name: r.name, color: r.color, code: r.code });
+function logLine(text, kind) {
+  const el = $('log'); if (el.dataset.fresh !== undefined) { el.innerHTML = ''; delete el.dataset.fresh; }
+  const d = document.createElement('div'); d.className = kind; d.textContent = text; el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+function startBattle(bots, seed, seriesInfo) {
+  $('log').dataset.fresh = '';
+  const b = new T.Battle(bots.map(spec), { seed, onLog: (i, t, k) => { if (k === 'error' || k === 'sys') logLine(`${bots[i].name}: ${t}`, k); } });
+  $('banner').innerHTML = '';
+  current = { battle: b, bots, series: seriesInfo || null };
+  $('series').textContent = seriesInfo ? seriesInfo.title() : (bots.length > 2 ? `👑 Королівська битва · ${bots.length} танків` : `${bots[0].name} ⚔ ${bots[1].name}`);
+  player.speed = $('speed').value === 'max' ? 'max' : +$('speed').value;
+  player.load(b);
+  $('pause').disabled = false; $('pause').textContent = '⏸';
+  showMode('battle');
+}
+$('royale').onclick = () => {
+  const p = pool();
+  if (p.length < 2) { toast('Оберіть хоча б двох учасників'); return; }
+  if (p.length > 16 && !confirm(`${p.length} танків на одному полі — буде тісно. Продовжити?`)) return;
+  startBattle(p, T.hashStr(S.key + '|royale|' + Date.now()));
+};
+$('pause').onclick = () => { player.paused = !player.paused; $('pause').textContent = player.paused ? '▶' : '⏸'; };
+$('speed').onchange = () => player.speed = $('speed').value === 'max' ? 'max' : +$('speed').value;
+$('scanCb').onchange = () => { T.CFG.SHOW_SCAN = $('scanCb').checked; };
+$('fsBtn').onclick = () => { const el = $('fsWrap'); if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen && el.requestFullscreen().then(() => setTimeout(() => player._resize(), 100)); };
+document.addEventListener('fullscreenchange', () => setTimeout(() => player._resize(), 100));
+
+function renderScore(b) {
+  const order = b.bots.slice().sort((x, y) => (y.alive - x.alive) || (y.energy - x.energy));
+  $('score').innerHTML = `<div class="muted" style="font-size:13px">хід ${b.tick} / ${T.CFG.MAX_TICKS}</div>` + order.map(t =>
+    `<div class="r ${t.alive ? '' : 'dead'}"><span class="dot" style="background:${t.color}"></span><span>${esc(t.name)}${t.crashed ? ' ⚠' : ''}</span><span style="text-align:right">${Math.max(0, t.energy).toFixed(0)}</span><div class="bar"><i style="width:${Math.max(0, Math.min(100, t.energy))}%;background:${t.color}"></i></div></div>`).join('');
+}
+function battleEnded(res, b) {
+  $('pause').disabled = true;
+  const cur = current;
+  if (cur && cur.series) { cur.series.next(res); return; }
+  const w = res.winner >= 0 ? cur.bots[res.winner] : null;
+  const top = res.ranking.slice(0, 3).map((i, k) => `${['🥇', '🥈', '🥉'][k]} ${esc(cur.bots[i].name)}`).join(' &nbsp; ');
+  $('banner').innerHTML = `<div class="banner ${w ? '' : 'draw'}">${w ? '🏆 Переміг ' + esc(w.name) + ' (' + esc(w.author) + ')' : '🤝 Нічия — час вийшов'}</div><p style="text-align:center">${top}</p>`;
+}
+
+/* --- серія (матч до N перемог або фіксована кількість раундів) --- */
+function computeSeries(a, b, matchKey, opts) {
+  // opts: {rounds} — фіксовано (кругова), або {firstTo} — до перемог (плей-оф)
+  const rounds = [];
+  let wa = 0, wb = 0, da = 0, db = 0;
+  const maxR = opts.rounds || 7;
+  for (let r = 0; r < maxR; r++) {
+    const flip = r % 2 === 1;
+    const pair = flip ? [b, a] : [a, b];
+    const seed = T.matchSeed(S.key, matchKey, '', r);
+    const res = new T.Battle(pair.map(spec), { seed }).runToEnd();
+    let w = res.winner < 0 ? null : (pair[res.winner] === a ? 'a' : 'b');
+    const sa = res.stats[flip ? 1 : 0], sb = res.stats[flip ? 0 : 1];
+    da += sa.damage; db += sb.damage;
+    if (w === 'a') wa++; if (w === 'b') wb++;
+    rounds.push({ seed, flip, w, da: sa.damage, db: sb.damage });
+    if (opts.firstTo && (wa >= opts.firstTo || wb >= opts.firstTo)) break;
+  }
+  let winner = wa > wb ? 'a' : wb > wa ? 'b' : null;
+  if (opts.firstTo && !winner) winner = da >= db ? 'a' : 'b'; // у плей-оф нічиєї бути не може
+  return { rounds, wa, wb, da, db, winner, tieBreak: opts.firstTo && wa === wb };
+}
+function watchSeries(a, b, ser, onDone) {
+  let k = 0, wa = 0, wb = 0;
+  const info = {
+    title: () => `${a.name} ${wa} : ${wb} ${b.name} · раунд ${k + 1} з ${ser.rounds.length}`,
+    next: res => {
+      const r = ser.rounds[k];
+      if (r.w === 'a') wa++; if (r.w === 'b') wb++;
+      const who = r.w === 'a' ? a.name : r.w === 'b' ? b.name : null;
+      k++;
+      $('series').textContent = `${a.name} ${wa} : ${wb} ${b.name}`;
+      if (k < ser.rounds.length) {
+        $('banner').innerHTML = `<div class="banner ${who ? '' : 'draw'}">${who ? 'Раунд за ' + esc(who) : 'Нічия в раунді'}</div><p style="text-align:center"><button class="primary" id="nextRound">▶ Наступний раунд</button></p>`;
+        $('nextRound').onclick = () => playRound();
+      } else {
+        const w = ser.winner === 'a' ? a : ser.winner === 'b' ? b : null;
+        $('banner').innerHTML = `<div class="banner ${w ? '' : 'draw'}">${w ? '🏆 Матч виграв ' + esc(w.name) + (ser.tieBreak ? ' (за шкодою)' : '') : '🤝 Нічия в матчі'}</div>` +
+          `<p style="text-align:center">Рахунок ${ser.wa}:${ser.wb} · Шкода ${ser.da}:${ser.db}</p>`;
+        onDone && onDone();
+      }
+    },
+  };
+  function playRound() {
+    const r = ser.rounds[k];
+    startBattle(r.flip ? [b, a] : [a, b], r.seed, info);
+  }
+  playRound();
+}
+
+/* ===== Кругова система ===== */
+let rrJob = null;
+$('rrRun').onclick = () => {
+  const p = pool();
+  if (p.length < 2) { toast('Оберіть хоча б двох учасників'); return; }
+  const n = +$('rrRounds').value;
+  const pairs = [];
+  for (let i = 0; i < p.length; i++) for (let j = i + 1; j < p.length; j++) pairs.push([p[i], p[j]]);
+  const jobs = [];
+  for (const [a, b] of pairs) for (let r = 0; r < n; r++) {
+    const flip = r % 2 === 1, pair = flip ? [b, a] : [a, b];
+    jobs.push({ a, b, r, flip, bots: pair.map(spec), seed: T.matchSeed(S.key, mkey(a, b), '', r) });
+  }
+  $('rrProg').hidden = false; $('rrCancel').hidden = false; $('rrRun').disabled = true;
+  $('rrInfo').textContent = `${pairs.length} пар × ${n} = ${jobs.length} боїв…`;
+  const t0 = performance.now();
+  rrJob = T.runBattlesAsync(jobs, (i, total) => { $('rrProg').firstChild.style.width = (100 * i / total) + '%'; }, results => {
+    const matches = {};
+    jobs.forEach((j, idx) => {
+      const res = results[idx], k = mkey(j.a, j.b);
+      const m = matches[k] || (matches[k] = { a: j.a.id, b: j.b.id, rounds: [], wa: 0, wb: 0, da: 0, db: 0 });
+      const w = res.winner < 0 ? null : ((j.flip ? res.winner === 1 : res.winner === 0) ? 'a' : 'b');
+      const sa = res.stats[j.flip ? 1 : 0], sb = res.stats[j.flip ? 0 : 1];
+      m.rounds.push({ seed: j.seed, flip: j.flip, w, da: sa.damage, db: sb.damage });
+      if (w === 'a') m.wa++; if (w === 'b') m.wb++; m.da += sa.damage; m.db += sb.damage;
+    });
+    S.rr = { key: S.key, ids: p.map(x => x.id), rounds: n, matches, time: Date.now() };
+    save();
+    $('rrProg').hidden = true; $('rrCancel').hidden = true; $('rrRun').disabled = false;
+    $('rrInfo').textContent = `Готово: ${jobs.length} боїв за ${((performance.now() - t0) / 1000).toFixed(1)} с.`;
+    renderRR();
+  });
+};
+$('rrCancel').onclick = () => { rrJob && rrJob.cancel(); $('rrProg').hidden = true; $('rrCancel').hidden = true; $('rrRun').disabled = false; $('rrInfo').textContent = 'Зупинено.'; };
+function mkey(a, b) { return [a.id, b.id].sort().join('~'); }
+const byId = id => S.roster.find(r => r.id === id);
+function standings() {
+  if (!S.rr) return null;
+  const rows = {};
+  for (const id of S.rr.ids) rows[id] = { id, w: 0, d: 0, l: 0, pts: 0, dmg: 0, played: 0 };
+  for (const m of Object.values(S.rr.matches)) {
+    for (const r of m.rounds) {
+      const A = rows[m.a], B = rows[m.b]; if (!A || !B) continue;
+      A.played++; B.played++; A.dmg += r.da; B.dmg += r.db;
+      if (r.w === 'a') { A.w++; B.l++; A.pts += 2; } else if (r.w === 'b') { B.w++; A.l++; B.pts += 2; } else { A.d++; B.d++; A.pts++; B.pts++; }
+    }
+  }
+  return Object.values(rows).filter(r => byId(r.id)).sort((x, y) => y.pts - x.pts || y.dmg - x.dmg);
+}
+function renderRR() {
+  const st = standings();
+  if (!st) { $('rrTable').hidden = true; return; }
+  $('rrTable').hidden = false;
+  const medal = i => ['🥇', '🥈', '🥉'][i] || (i + 1);
+  let h = `<h3>Таблиця ${S.rr.key !== S.key ? '<span class="badge">інший ключ</span>' : ''}</h3><div style="overflow-x:auto"><table class="t"><tr><th>#</th><th>Танк</th><th>Автор</th><th>Клас</th><th class="n">В</th><th class="n">Н</th><th class="n">П</th><th class="n">Очки</th><th class="n">Шкода</th></tr>`;
+  st.forEach((r, i) => {
+    const b = byId(r.id);
+    h += `<tr><td>${medal(i)}</td><td><span class="dot" style="display:inline-block;background:${b.color}"></span> ${esc(b.name)}</td><td>${esc(b.author)}</td><td>${esc(b.cls)}</td><td class="n">${r.w}</td><td class="n">${r.d}</td><td class="n">${r.l}</td><td class="n"><b>${r.pts}</b></td><td class="n">${r.dmg}</td></tr>`;
+  });
+  h += '</table></div>';
+  h += `<details style="margin-top:12px"><summary>Усі матчі (${Object.keys(S.rr.matches).length}) — натисніть ▶, щоб переглянути на арені</summary><div class="mlist">`;
+  for (const [k, m] of Object.entries(S.rr.matches)) {
+    const a = byId(m.a), b = byId(m.b); if (!a || !b) continue;
+    h += `<div><span class="dot" style="background:${a.color}"></span>${esc(a.name)} <b>${m.wa}:${m.wb}</b> ${esc(b.name)}<span class="dot" style="background:${b.color}"></span><button class="small" data-watch="${k}">▶</button></div>`;
+  }
+  h += '</div></details>';
+  $('rrTable').innerHTML = h;
+}
+$('rrTable').onclick = e => {
+  const btn = e.target.closest('[data-watch]'); if (!btn) return;
+  const m = S.rr.matches[btn.dataset.watch];
+  const a = byId(m.a), b = byId(m.b);
+  watchSeries(a, b, { rounds: m.rounds, wa: m.wa, wb: m.wb, da: m.da, db: m.db, winner: m.wa > m.wb ? 'a' : m.wb > m.wa ? 'b' : null });
+};
+
+/* ===== Плей-оф ===== */
+function seedOrder(n) { // класичний посів: 1–n, 2–(n-1)...
+  let s = [1];
+  while (s.length < n) { const m = s.length * 2 + 1; s = s.flatMap(x => [x, m - x]); }
+  return s;
+}
+$('poMake').onclick = () => {
+  let p = pool();
+  if (p.length < 2) { toast('Оберіть хоча б двох учасників'); return; }
+  const st = standings();
+  if (st && st.length) {
+    const rank = new Map(st.map((r, i) => [r.id, i]));
+    p = p.slice().sort((x, y) => (rank.has(x.id) ? rank.get(x.id) : 999) - (rank.has(y.id) ? rank.get(y.id) : 999));
+  } else {
+    // без кругової — випадковий посів за ключем
+    p = p.slice().sort((x, y) => T.hashStr(S.key + x.id) - T.hashStr(S.key + y.id));
+  }
+  const lim = +$('poSize').value; if (lim) p = p.slice(0, lim);
+  let size = 2; while (size < p.length) size *= 2;
+  const order = seedOrder(size);
+  const first = [];
+  for (let i = 0; i < size; i += 2) {
+    const a = p[order[i] - 1], b = p[order[i + 1] - 1];
+    first.push({ a: a ? a.id : null, b: b ? b.id : null, res: null });
+  }
+  const rounds = [first];
+  for (let n = size / 4; n >= 1; n /= 2) rounds.push(Array.from({ length: n }, () => ({ a: null, b: null, res: null })));
+  S.po = { key: S.key, rounds };
+  advanceByes(); save(); renderPO();
+};
+function advanceByes() {
+  const R = S.po.rounds;
+  for (let r = 0; r < R.length; r++) R[r].forEach((m, i) => {
+    if (!m.res && ((m.a && !m.b) || (!m.a && m.b)) && (r === 0 || feedersDone(r, i))) m.res = { winner: m.a ? 'a' : 'b', bye: true };
+    if (m.res && r + 1 < R.length) {
+      const nx = R[r + 1][i >> 1], w = m.res.winner === 'a' ? m.a : m.b;
+      if (i % 2 === 0) nx.a = w; else nx.b = w;
+    }
+  });
+}
+function feedersDone(r, i) { const R = S.po.rounds; return R[r - 1][i * 2].res && R[r - 1][i * 2 + 1].res; }
+function playMatch(r, i, watch) {
+  const m = S.po.rounds[r][i];
+  const a = byId(m.a), b = byId(m.b);
+  const ser = computeSeries(a, b, `po|${r}|${i}|` + mkey(a, b), { firstTo: 2 });
+  const commit = () => { m.res = { winner: ser.winner, wa: ser.wa, wb: ser.wb, tie: ser.tieBreak }; advanceByes(); save(); renderPO(); };
+  if (watch) watchSeries(a, b, ser, () => { commit(); });
+  else commit();
+}
+$('poAll').onclick = () => {
+  const R = S.po.rounds;
+  for (let r = 0; r < R.length; r++) R[r].forEach((m, i) => { if (!m.res && m.a && m.b) playMatch(r, i, false); });
+  for (let r = 0; r < R.length; r++) R[r].forEach((m, i) => { if (!m.res && m.a && m.b) playMatch(r, i, false); });
+  renderPO();
+};
+function renderPO() {
+  if (!S.po) { $('poView').innerHTML = ''; $('poAll').disabled = true; return; }
+  $('poAll').disabled = false;
+  const R = S.po.rounds;
+  const names = ['Фінал', 'Півфінал', 'Чвертьфінал', '1/8 фіналу', '1/16 фіналу'];
+  const final = R[R.length - 1][0];
+  let h = '';
+  if (final.res) {
+    const w = byId(final.res.winner === 'a' ? final.a : final.b);
+    if (w) h += `<div class="champ">🏆 Чемпіон: ${esc(w.name)} <div style="font-size:16px;font-weight:600">${esc(w.author)} ${esc(w.cls)}</div></div>`;
+  }
+  h += '<div class="card"><div class="bracket">';
+  R.forEach((round, r) => {
+    h += `<div class="round"><h4>${names[R.length - 1 - r] || 'Раунд ' + (r + 1)}</h4>`;
+    round.forEach((m, i) => {
+      const a = byId(m.a), b = byId(m.b);
+      const pl = (x, side) => {
+        if (!x) return `<div class="p muted">${m[side] === null && (r === 0) ? '— (вільний прохід)' : '…'}</div>`;
+        const win = m.res && m.res.winner === side;
+        const sc = m.res && !m.res.bye ? (side === 'a' ? m.res.wa : m.res.wb) : '';
+        return `<div class="p ${win ? 'win' : ''}"><span class="dot" style="background:${x.color}"></span>${esc(x.name)}<span class="sc">${sc}${win && m.res.tie ? '*' : ''}</span></div>`;
+      };
+      h += `<div class="match">${pl(a, 'a')}${pl(b, 'b')}`;
+      if (a && b && !m.res) h += `<div class="act"><button data-po="${r},${i},1">▶ Дивитись</button><button data-po="${r},${i},0">⚡</button></div>`;
+      else if (a && b && m.res && !m.res.bye) h += `<div class="act"><button data-po="${r},${i},2">▶ Повтор</button></div>`;
+      h += '</div>';
+    });
+    h += '</div>';
+  });
+  h += '</div><p class="muted" style="font-size:13px">* — рахунок рівний, переміг за більшою завданою шкодою.</p></div>';
+  $('poView').innerHTML = h;
+}
+$('poView').onclick = e => {
+  const b = e.target.closest('[data-po]'); if (!b) return;
+  const [r, i, mode] = b.dataset.po.split(',').map(Number);
+  if (mode === 2) {
+    const m = S.po.rounds[r][i], a = byId(m.a), bb = byId(m.b);
+    watchSeries(a, bb, computeSeries(a, bb, `po|${r}|${i}|` + mkey(a, bb), { firstTo: 2 }));
+  } else playMatch(r, i, mode === 1);
+};
+
+/* ===== Старт ===== */
+renderRoster(); renderRR(); renderPO();
+</script>
+</body>
+</html>

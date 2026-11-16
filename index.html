@@ -13,6 +13,144 @@
 <script src="https://cdn.jsdelivr.net/npm/blockly@12.5.1/msg/uk.js"></script>
 <script src="engine.js"></script>
 <script src="blocks.js"></script>
+<style>
+/* ===== «Мій танк»: збереження ===== */
+.tb-sec { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+.tb-sec h3 { margin: 0 0 6px; font-size: 17px; }
+.tb-sec p.muted { margin: 0 0 10px; font-size: 14px; line-height: 1.4; }
+.tb-big { width: 100%; padding: 13px; font-size: 16px; border-radius: 12px; }
+.tb-tip { font-size: 13px; color: var(--muted); margin: 5px 2px 12px; line-height: 1.4; }
+.tb-warn { background: #3a2f10; color: #ffe08a; border-radius: 10px; padding: 10px 12px; margin-top: 10px; font-size: 14px; line-height: 1.4; }
+.sp-open { width: 100%; background: rgba(27,36,30,.85); border: 1px solid var(--line); border-radius: 12px; padding: 11px; color: var(--text); }
+.sd-save { display: flex; gap: 12px; align-items: center; }
+.sd-save div { flex: 1; font-size: 14px; line-height: 1.4; }
+
+/* ===== Вкладка «Здати» ===== */
+.sd-head { text-align: center; margin: 4px 0 14px; }
+.sd-head h2 { margin: 0 0 4px; font-size: 22px; }
+.sd-head p { margin: 0; color: var(--muted); }
+.sd-step { display: flex; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; position: relative; }
+.sd-step.done { border-color: #3d6b2c; }
+.sd-step.locked .sd-big { opacity: .55; }
+.sd-num { flex: 0 0 36px; height: 36px; border-radius: 50%; background: var(--panel2); border: 2px solid var(--accent); color: var(--accent); font-weight: 900; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.sd-step.done .sd-num { background: var(--accent); color: #102010; }
+.sd-body { flex: 1; min-width: 0; }
+.sd-body h3 { margin: 6px 0 6px; font-size: 18px; }
+.sd-ok[hidden] { display: none; }
+.sd-check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); line-height: 1.4; }
+.sd-check:first-child { border-top: 0; }
+.sd-check > span { font-size: 18px; line-height: 1.3; }
+.sd-check.bad { color: #ffd7d7; }
+.sd-check button { margin-top: 6px; }
+.sd-explain { margin: 0 0 12px; line-height: 1.45; }
+.sd-big { width: 100%; padding: 15px; font-size: 18px; border-radius: 14px; }
+.sd-alt { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.sd-alt button { padding: 9px 4px; font-size: 13px; white-space: normal; }
+.sd-help { margin-top: 10px; background: #1f3320; border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; line-height: 1.45; font-size: 14px; }
+.sd-help[hidden] { display: none; }
+.sd-sent { background: #1f3320; border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; font-size: 14px; line-height: 1.4; }
+.sd-sent.warn { background: #3a2f10; color: #ffe08a; }
+.sd-code { margin-top: 10px; }
+.sd-code summary, .sd-more summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 4px 0; }
+.sd-more summary { font-size: 16px; color: var(--text); font-weight: 700; }
+.sd-more[open] summary { margin-bottom: 8px; }
+
+/* ===== Вибір числа ===== */
+.nb-row { display: flex; gap: 8px; align-items: center; margin: 14px 0 6px; }
+.nb-row input { flex: 1; font-size: 28px; font-weight: 800; text-align: center; padding: 10px 6px; font-family: var(--mono); }
+.nb-step { width: 58px; height: 58px; padding: 0; font-size: 30px; font-weight: 800; border-radius: 14px; }
+.nb-hint { font-size: 13px; color: var(--muted); text-align: center; min-height: 18px; }
+.nb-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; margin-top: 10px; }
+.nb-presets button { padding: 11px 4px; font-size: 16px; font-weight: 700; font-family: var(--mono); }
+.nb-presets button.on { background: var(--accent); color: #102010; border-color: var(--accent); }
+.bk-tip { position: absolute; bottom: 78px; right: 10px; left: 10px; z-index: 59; display: flex; gap: 8px; align-items: flex-start; background: rgba(31,51,32,.97); border: 1px solid var(--accent); border-radius: 12px; padding: 9px 8px 9px 12px; font-size: 13px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0,0,0,.45); }
+.bk-tip[hidden] { display: none; }
+.bk-tip div { flex: 1; }
+.bk-num { display: inline-block; background: #fff; color: #222; font-weight: 800; border-radius: 999px; padding: 0 8px; font-size: 12px; }
+@media (min-width: 700px) { .bk-tip { max-width: 420px; } }
+
+/* ===== Кнопки на полі блоків ===== */
+.bk-tools { position: absolute; right: 10px; bottom: 22px; z-index: 60; display: flex; gap: 6px; }
+.bk-tools[hidden] { display: none; }
+.bk-tools button { width: 44px; height: 44px; padding: 0; border-radius: 14px; font-size: 24px; font-weight: 700; line-height: 1; background: rgba(35,47,39,.92); border: 1px solid #3a4a3f; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.bk-tools button:active { background: var(--accent); color: #102010; }
+.bk-sel { position: absolute; top: 10px; right: 10px; left: auto; z-index: 61; display: flex; align-items: center; gap: 6px; background: rgba(27,36,30,.96); border: 1px solid var(--accent); border-radius: 14px; padding: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.5); max-width: calc(100% - 20px); }
+.bk-sel[hidden], .bk-sel [hidden] { display: none !important; }
+.bk-sel-t { font-size: 13px; color: var(--muted); padding: 0 4px 0 6px; white-space: nowrap; }
+.bk-sel button { min-height: 44px; padding: 0 12px; border-radius: 10px; font-weight: 700; }
+.bk-sel .bk-del { background: #5a1f1f; border-color: #8d2e2e; }
+.bk-sel .bk-x { width: 44px; padding: 0; }
+@media (max-width: 420px) { .bk-sel-t { display: none; } }
+
+/* ===== Заставка першого візиту ===== */
+#splash { position: fixed; inset: 0; z-index: 900; background: #0b120d; overflow: hidden; }
+#splash[hidden] { display: none !important; }
+#splashCv { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); height: 100%; width: auto; min-width: 100%; opacity: .9; }
+.sp-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,18,13,.92) 0%, rgba(11,18,13,.35) 34%, rgba(11,18,13,.2) 55%, rgba(11,18,13,.95) 82%); }
+.sp-body { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: calc(28px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); max-width: 520px; margin: 0 auto; }
+.sp-top { text-align: center; }
+.sp-badge { display: inline-block; background: var(--accent2); color: #1d1400; font-weight: 800; font-size: 13px; letter-spacing: .08em; padding: 6px 12px; border-radius: 999px; }
+.sp-title { margin: 14px 0 10px; font-size: clamp(46px, 15vw, 76px); line-height: .92; font-weight: 900; letter-spacing: -.02em; color: var(--accent); text-shadow: 0 4px 24px rgba(0,0,0,.6); }
+.sp-tag { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 700; text-shadow: 0 2px 12px rgba(0,0,0,.8); }
+.sp-tag b { color: var(--accent2); }
+.sp-bottom { display: flex; flex-direction: column; gap: 10px; }
+.sp-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; }
+.sp-steps div { display: flex; flex-direction: column; align-items: center; gap: 2px; font-weight: 800; font-size: 14px; background: rgba(27,36,30,.85); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; min-width: 84px; }
+.sp-steps span { font-size: 26px; line-height: 1.1; }
+.sp-steps i { color: var(--accent); font-style: normal; font-weight: 800; }
+.sp-go { width: 100%; padding: 16px; font-size: 19px; border-radius: 14px; animation: sp-pulse 1.6s ease-in-out infinite; }
+.sp-how { width: 100%; color: var(--muted); border: 0; }
+.sp-row { display: flex; gap: 6px; }
+.sp-cont { display: flex; align-items: center; gap: 12px; background: rgba(27,36,30,.9); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.sp-cont[hidden] { display: none; }
+.sp-cont .dot { width: 18px; height: 18px; }
+.sp-cont b { font-size: 17px; }
+@keyframes sp-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(139,195,74,.55); } 50% { box-shadow: 0 0 0 12px rgba(139,195,74,0); } }
+@media (prefers-reduced-motion: reduce) { .sp-go { animation: none; } }
+
+/* ===== Інфографіка «Як грати» ===== */
+.ig-hero { background: #1f3320; border: 2px solid var(--accent); border-radius: 16px; padding: 18px; margin-bottom: 14px; text-align: center; }
+.ig-kick { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.ig-hero h2 { margin: 6px 0 14px; font-size: 24px; line-height: 1.2; }
+.ig-two { display: flex; align-items: stretch; gap: 8px; }
+.ig-side { flex: 1 1 0; background: var(--bg); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.ig-side span { color: var(--muted); line-height: 1.35; }
+.ig-big { font-size: 34px; line-height: 1.1; }
+.ig-arrow { align-self: center; font-size: 26px; color: var(--accent); font-weight: 800; }
+.ig-note { margin: 14px 0 0; font-weight: 700; }
+.ig-cycle { display: block; width: 100%; max-width: 360px; margin: 4px auto 6px; }
+.ig-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.4; }
+.ig-finish { margin-top: 14px; background: var(--bg); border: 2px dashed var(--accent); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; }
+.ig-chain b { white-space: nowrap; }
+.ig-brain { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 620px) { .ig-brain { grid-template-columns: 1fr; } }
+.ig-loop, .ig-events { display: flex; flex-direction: column; gap: 6px; }
+.ig-hat { color: #1d1400; font-weight: 800; font-size: 14px; padding: 8px 12px; border-radius: 14px 14px 4px 4px; }
+.ig-forever { background: #5b80a5; border-radius: 6px; padding: 6px 8px 8px 16px; display: flex; flex-direction: column; gap: 5px; position: relative; }
+.ig-fh { font-weight: 800; font-size: 14px; }
+.ig-cmd { color: #fff; font-weight: 700; font-size: 13px; padding: 7px 10px; border-radius: 6px; }
+.ig-back { font-size: 13px; font-weight: 800; color: #fff; opacity: .9; padding-top: 2px; }
+.ig-ev { display: flex; flex-direction: column; gap: 4px; background: rgba(230,161,0,.08); border-radius: 10px; padding: 6px; }
+.ig-ev .ig-hat { font-size: 13px; padding: 6px 10px; }
+.ig-cap { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.ig-tl { display: flex; gap: 3px; height: 46px; margin-top: 8px; }
+.ig-tl span { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; line-height: 1.15; font-weight: 700; border-radius: 6px; overflow: hidden; min-width: 0; padding: 0 1px; }
+@media (min-width: 560px) { .ig-tl span { font-size: 13px; } }
+.ig-tl .m { background: #2e7d4f; color: #fff; }
+.ig-tl .e { background: #e6a100; color: #1d1400; box-shadow: 0 0 0 2px #fff3 inset; transform: translateY(-6px); }
+.ig-tl .e.r { background: #ff7043; }
+.ig-tlcap { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.ig-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 8px; }
+.ig-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.ig-radar { display: grid; grid-template-columns: 220px 1fr; gap: 14px; align-items: center; }
+.ig-radar svg { width: 100%; }
+@media (max-width: 560px) { .ig-radar { grid-template-columns: 1fr; } .ig-radar svg { max-width: 300px; margin: 0 auto; display: block; } }
+.ig-energy { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.ig-energy div { background: var(--bg); border-radius: 10px; padding: 10px 8px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.ig-energy b { font-size: 20px; font-family: var(--mono); color: var(--accent); }
+.ig-energy .neg b { color: #ff8a65; } .ig-energy .pos b { color: var(--ok); } .ig-energy .dead b { color: var(--danger); }
+.ig-energy span { font-size: 12px; color: var(--muted); line-height: 1.3; }
+</style>
 </head>
 <body>
 <header class="top">
@@ -25,6 +163,23 @@
   <!-- БЛОКИ -->
   <section class="tab full active" id="tab-blocks">
     <div id="blockly"></div>
+    <div class="bk-tools" id="bkTools" hidden>
+      <button data-a="undo" aria-label="Скасувати">↶</button>
+      <button data-a="redo" aria-label="Повторити">↷</button>
+      <button data-a="fit" aria-label="Показати всі блоки">⤢</button>
+      <button data-a="out" aria-label="Зменшити">−</button>
+      <button data-a="in" aria-label="Збільшити">+</button>
+    </div>
+    <div class="bk-tip" id="bkTip" hidden>
+      <div>💡 Щоб змінити число, торкнись білого овалу з ним, напр. <span class="bk-num">100</span><br>Торкнись самого блоку — з’являться кнопки «Копія» і «Видалити».</div>
+      <button class="small ghost" id="bkTipX" aria-label="Зрозуміло">✕</button>
+    </div>
+    <div class="bk-sel" id="bkSel" hidden>
+      <span class="bk-sel-t" id="bkSelT">Блок вибрано</span>
+      <button data-s="dup">⧉ Копія</button>
+      <button data-s="del" class="bk-del">🗑 Видалити</button>
+      <button data-s="close" aria-label="Зняти вибір" class="bk-x">✕</button>
+    </div>
     <div class="over" id="blocksOff" hidden>
       <div>
         <p style="font-size:18px">🐍 Твій танк зараз програмується на <b>Python</b>.</p>
@@ -89,52 +244,86 @@
   <!-- ЗДАТИ -->
   <section class="tab" id="tab-send">
     <div class="pad">
-      <div class="card">
-        <h3>👤 Про мене і мій танк</h3>
-        <div class="grid2">
-          <div><label>Ім’я та прізвище</label><input type="text" id="fAuthor" maxlength="40" placeholder="Олена Коваль"></div>
-          <div><label>Клас</label><input type="text" id="fCls" maxlength="10" placeholder="8-А"></div>
-          <div><label>Назва танка</label><input type="text" id="fName" maxlength="30" placeholder="Гроза"></div>
-          <div><label>Колір</label><div class="palette" id="palette"></div></div>
-        </div>
+      <div class="sd-head">
+        <h2>📤 Здати танк на турнір</h2>
+        <p>3 кроки — і твій танк у турнірі</p>
       </div>
-      <div class="card">
-        <h3>✅ Перевірка перед здачею</h3>
-        <div id="checks"></div>
-        <div class="row" style="margin-top:10px"><button class="primary" id="makeCode">📦 Підготувати бота до здачі</button></div>
-        <div id="sendBox" hidden>
-          <label>Код твого бота</label>
-          <textarea id="botCode" readonly rows="4" class="code" style="font-size:12px;word-break:break-all;white-space:pre-wrap"></textarea>
-          <div class="row" style="margin-top:8px">
-            <button class="primary" id="copyCode">📋 Копіювати</button>
-            <button id="shareCode">📤 Поділитися</button>
-            <button id="mailCode">✉️ Надіслати вчителю</button>
-            <button id="dlCode">💾 Файл</button>
+
+      <div class="sd-step" id="st1">
+        <div class="sd-num">1</div>
+        <div class="sd-body">
+          <h3>Хто ти? <span class="sd-ok" id="ok1">✅</span></h3>
+          <div class="grid2">
+            <div><label for="fAuthor">Ім’я та прізвище</label><input type="text" id="fAuthor" maxlength="40" placeholder="Олена Коваль"></div>
+            <div><label for="fCls">Клас</label><input type="text" id="fCls" maxlength="10" placeholder="8-А"></div>
+            <div><label for="fName">Назва танка</label><input type="text" id="fName" maxlength="30" placeholder="Гроза"></div>
+            <div><label>Колір танка</label><div class="palette" id="palette"></div></div>
           </div>
-          <p class="muted" style="font-size:13px">Надішли цей код учителю (пошта, Telegram, Viber — будь-як). Змінив танк — підготуй і надішли код знову: у турнірі буде остання версія.</p>
         </div>
       </div>
-      <div class="card">
-        <h3>📥 Бот друга або мій з іншого телефона</h3>
-        <textarea id="importText" rows="3" placeholder="Встав сюди код бота (починається з TNK…)" class="code" style="font-size:12px"></textarea>
+
+      <div class="sd-step" id="st2">
+        <div class="sd-num">2</div>
+        <div class="sd-body">
+          <h3>Чи готовий танк? <span class="sd-ok" id="ok2">✅</span></h3>
+          <div id="checks"></div>
+        </div>
+      </div>
+
+      <div class="sd-step" id="st3">
+        <div class="sd-num">3</div>
+        <div class="sd-body">
+          <h3>Надішли вчителю</h3>
+          <p class="sd-explain">Твій танк перетвориться на <b>код</b> — довгий рядок літер. Надішли його вчителю, як звичайне повідомлення в Telegram, Viber чи поштою.</p>
+          <div id="sentInfo"></div>
+          <button class="primary sd-big" id="sendMain">📤 Надіслати вчителю</button>
+          <div class="sd-alt">
+            <button id="mailCode">✉️ Поштою</button>
+            <button id="copyCode">📋 Скопіювати код</button>
+            <button id="dlCode">💾 Файлом</button>
+          </div>
+          <div id="copyHelp" class="sd-help" hidden>
+            <b>Код скопійовано!</b> Тепер відкрий Telegram або Viber, знайди вчителя, натисни на поле повідомлення, потримай палець і вибери <b>«Вставити»</b>. Надішли.
+          </div>
+          <details class="sd-code">
+            <summary>Показати код танка</summary>
+            <textarea id="botCode" readonly rows="4" class="code" style="font-size:12px;word-break:break-all;white-space:pre-wrap;margin-top:8px"></textarea>
+          </details>
+          <p class="muted" style="font-size:13px;margin:10px 0 0">Змінив танк? Просто надішли ще раз — у турнірі буде найновіша версія.</p>
+        </div>
+      </div>
+
+      <div class="card sd-save">
+        <div><b>💾 Не загуби свій танк!</b><br><span class="muted">Збережи копію на телефон або відкрий збережену раніше.</span></div>
+        <button class="primary" id="sdSaveBtn">Мій танк</button>
+      </div>
+
+      <details class="card sd-more">
+        <summary>👥 Побитися з танком друга</summary>
+        <p class="muted" style="font-size:14px">Попроси друга надіслати тобі код його танка (він у нього в цій же вкладці) і встав сюди. Друг з’явиться у «Тренуванні».</p>
+        <textarea id="importText" rows="3" placeholder="Встав сюди код (починається з TNK…)" class="code" style="font-size:12px"></textarea>
         <div class="row" style="margin-top:8px">
-          <button id="addFriend">➕ Додати як суперника</button>
-          <button id="openOwn">📂 Відкрити як мій танк</button>
-          <label class="row" style="margin:0"><input type="file" id="importFile" accept=".json,.txt,.tank" hidden><span><button type="button" onclick="document.getElementById('importFile').click()">📄 З файлу</button></span></label>
+          <button class="primary" id="addFriend">➕ Додати друга</button>
+          <button type="button" onclick="document.getElementById('importFile').click()">📄 З файлу</button>
+          <input type="file" id="importFile" accept=".json,.txt,.tank" hidden>
         </div>
         <div id="friends" style="margin-top:10px"></div>
-      </div>
-      <div class="card">
-        <h3>🗑 Почати спочатку</h3>
+      </details>
+
+      <details class="card sd-more">
+        <summary>🗑 Почати новий танк</summary>
         <p class="muted">Новий танк зі стартовою програмою. Поточний буде видалено з цього телефона.</p>
-        <button id="resetAll">Новий танк</button>
-      </div>
+        <button id="resetAll">Почати новий танк</button>
+      </details>
     </div>
   </section>
 
   <!-- ДОВІДКА -->
   <section class="tab" id="tab-help">
     <div class="pad help" id="helpBox"></div>
+    <div id="introCta" hidden style="position:sticky;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent, var(--bg) 35%)">
+      <button class="primary" id="introGo" style="width:100%;max-width:520px;display:block;margin:0 auto;padding:14px;font-size:17px">▶ Зрозуміло! Створити свій танк</button>
+    </div>
   </section>
 </main>
 
@@ -143,13 +332,44 @@
   <button data-tab="code"><span class="ic">🐍</span>Код</button>
   <button data-tab="train"><span class="ic">⚔️</span>Тренування</button>
   <button data-tab="send"><span class="ic">📤</span>Здати</button>
-  <button data-tab="help"><span class="ic">❓</span>Довідка</button>
+  <button data-tab="help"><span class="ic">❓</span>Як грати</button>
 </nav>
+
+<div id="splash" hidden>
+  <canvas id="splashCv" aria-hidden="true"></canvas>
+  <div class="sp-shade"></div>
+  <div class="sp-body">
+    <div class="sp-top">
+      <div class="sp-badge">⚔️ ЗМАГАННЯ ЛІЦЕЮ</div>
+      <h1 class="sp-title">ТАНКОВА<br>АРЕНА</h1>
+      <p class="sp-tag">Запрограмуй танк.<br>Він воює <b>сам</b>.</p>
+    </div>
+    <div class="sp-bottom">
+      <div class="sp-steps">
+        <div><span>🧩</span>Збери</div>
+        <i>→</i>
+        <div><span>⚔️</span>Тренуй</div>
+        <i>→</i>
+        <div><span>🏆</span>Перемагай</div>
+      </div>
+      <div class="sp-cont" id="spCont" hidden>
+        <span class="dot" id="spDot"></span>
+        <div><div class="muted" style="font-size:12px">Твій танк</div><b id="spName"></b></div>
+      </div>
+      <button class="primary sp-go" id="splashGo">▶ Створити свій танк</button>
+      <div class="sp-row">
+        <button class="ghost sp-how" id="splashHow">Як це працює?</button>
+        <button class="ghost sp-how" id="splashNew" hidden>＋ Новий танк</button>
+      </div>
+      <button class="sp-open" id="splashOpen">📂 Відкрити збережений танк</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="welcome">
   <div class="card">
-    <h2>👋 Вітаю в Танковій Арені!</h2>
-    <p>Ти програмуєш танк, а потім він сам б’ється з танками однокласників. Керувати ним у бою не можна — усе вирішує твоя програма.</p>
+    <h2>🛠 Створюємо твій танк</h2>
+    <p class="muted">Ці дані потрібні, щоб учитель знав, чий танк у турнірі. Змінити їх можна потім у вкладці «Здати».</p>
     <label>Ім’я та прізвище</label><input type="text" id="wAuthor" maxlength="40">
     <div class="grid2">
       <div><label>Клас</label><input type="text" id="wCls" maxlength="10" placeholder="8-А"></div>
@@ -159,6 +379,62 @@
     <div class="row">
       <button class="primary" id="wBlocks">🧩 Блоками</button>
       <button class="warn" id="wPython">🐍 На Python</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="tankBox">
+  <div class="card" style="max-width:440px">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <h2 style="margin:0">💾 Мій танк</h2>
+      <button class="small ghost" id="tbClose" aria-label="Закрити">✕</button>
+    </div>
+    <div id="tbWarn"></div>
+
+    <div class="tb-sec" id="tbSaveSec">
+      <h3>Зберегти на телефон</h3>
+      <p class="muted">Сайт пам’ятає танк лише в цьому браузері. Збережи копію — і відновиш танк будь-де, навіть якщо все зникне.</p>
+      <div id="tbSaved"></div>
+      <button class="primary tb-big" id="tbLink">🔗 Надіслати собі посилання</button>
+      <p class="tb-tip">Найпростіше: надішли посилання собі в Telegram <b>(«Збережене»)</b> або Viber. Відкриєш його — і танк повернеться.</p>
+      <button class="tb-big" id="tbFile">💾 Зберегти файлом</button>
+      <p class="tb-tip">Файл потрапить у «Завантаження» телефона.</p>
+      <div id="tbHelp" class="sd-help" hidden></div>
+    </div>
+
+    <div class="tb-sec">
+      <h3>Відкрити збережений</h3>
+      <button class="tb-big" id="tbPick">📂 Вибрати файл танка</button>
+      <input type="file" id="tbFileIn" accept=".txt,.json,.tank,text/plain,application/json" hidden>
+      <p class="tb-tip">Або встав посилання чи код танка:</p>
+      <textarea id="tbPaste" rows="2" class="code" style="font-size:12px" placeholder="https://…#tank=TNK…  або  TNK…"></textarea>
+      <button id="tbPasteGo" style="margin-top:6px;width:100%">Відкрити</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="numBox">
+  <div class="card" style="max-width:380px">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <h3 id="numTitle" style="margin:0;flex:1">Число</h3>
+      <button class="small ghost" id="numClose" aria-label="Закрити">✕</button>
+    </div>
+    <div class="nb-row">
+      <button class="nb-step" id="numMinus" aria-label="Менше">−</button>
+      <input type="number" id="numIn" inputmode="decimal" step="any" aria-label="Значення">
+      <button class="nb-step" id="numPlus" aria-label="Більше">+</button>
+    </div>
+    <div class="nb-hint" id="numHint"></div>
+    <div class="nb-presets" id="numPresets"></div>
+    <button class="primary" id="numOk" style="width:100%;padding:14px;font-size:17px;margin-top:12px">✓ Готово</button>
+  </div>
+</div>
+
+<div class="modal" id="askBox">
+  <div class="card" style="max-width:400px">
+    <p id="askText" style="font-size:17px;line-height:1.4;margin:4px 0 16px"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button id="askNo">Скасувати</button>
+      <button class="primary" id="askYes">Так</button>
     </div>
   </div>
 </div>
@@ -180,6 +456,18 @@ function load() {
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 const $ = id => document.getElementById(id);
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200); }
+// Власне вікно підтвердження: стандартне confirm() блокують деякі браузери й вбудовані переглядачі
+function ask(text, yes = 'Так', danger = false) {
+  return new Promise(res => {
+    $('askText').textContent = text; $('askYes').textContent = yes;
+    $('askYes').className = danger ? 'warn' : 'primary';
+    const box = $('askBox'); box.classList.add('show');
+    const end = v => { box.classList.remove('show'); $('askYes').onclick = $('askNo').onclick = box.onclick = null; res(v); };
+    $('askYes').onclick = () => end(true);
+    $('askNo').onclick = () => end(false);
+    box.onclick = e => { if (e.target === box) end(false); };
+  });
+}
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 /* ===== Вкладки ===== */
@@ -189,7 +477,7 @@ function showTab(t) {
   curTab = t;
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
   document.querySelectorAll('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + t));
-  if (t === 'blocks' && ws) setTimeout(() => Blockly.svgResize(ws), 0);
+  if (t === 'blocks' && ws) { setTimeout(() => Blockly.svgResize(ws), 0); $('bkTip').hidden = !!S.tipDone || S.mode !== 'blocks'; setTimeout(() => { const tb = document.querySelector('.blocklyToolbox, .blocklyToolboxDiv'); if (tb) { const w = tb.getBoundingClientRect().width + 10; $('bkTip').style.left = w + 'px'; } }, 50); }
   if (t === 'code') renderCodeTab();
   if (t === 'train') { renderOpp(); player && player._resize(); }
   if (t === 'send') renderSend();
@@ -198,15 +486,63 @@ function showTab(t) {
 /* ===== Шапка ===== */
 function renderChip() {
   $('botDot').style.background = S.color;
-  $('botName').textContent = (S.name || 'Мій танк') + (S.mode === 'python' ? ' · 🐍' : ' · 🧩');
+  $('botName').textContent = '💾 ' + (S.name || 'Мій танк');
 }
-$('botChip').onclick = () => showTab('send');
+$('botChip').onclick = () => openTankBox();
 
 /* ===== Blockly ===== */
 let ws = null, blocklyOk = typeof Blockly !== 'undefined' && typeof python !== 'undefined';
+/* ===== Зручна зміна чисел у блоках ===== */
+const NUM_KIND = {
+  tank_forward: ['Скільки кроків проїхати?', [25, 50, 100, 200, 400], 10, '6 кроків = 1 хід. Поле — 800 × 600 кроків'],
+  tank_back: ['Скільки кроків назад?', [25, 50, 100, 200, 400], 10, '6 кроків = 1 хід'],
+  tank_left: ['На скільки градусів повернути?', [15, 45, 90, 180, 360], 15, '90° — чверть оберту, 360° — повний оберт'],
+  tank_right: ['На скільки градусів повернути?', [15, 45, 90, 180, 360], 15, '90° — чверть оберту, 360° — повний оберт'],
+  tank_gun_left: ['На скільки градусів повернути гармату?', [15, 45, 90, 180, 360], 15, '360° — гармата оглядає все довкола'],
+  tank_gun_right: ['На скільки градусів повернути гармату?', [15, 45, 90, 180, 360], 15, '360° — гармата оглядає все довкола'],
+  tank_fire: ['Сила пострілу', [0.5, 1, 2, 3], 0.5, 'Від 0.1 до 3. Сильніше — болючіше, але дорожче'],
+  tank_wait: ['Скільки ходів чекати?', [1, 5, 10, 30], 1, ''],
+  controls_repeat_ext: ['Скільки разів повторити?', [2, 3, 4, 5, 10], 1, ''],
+  tank_random: ['Число', [1, 5, 10, 45, 90], 1, ''],
+};
+let numField = null;
+function openNumPad(field) {
+  numField = field;
+  const src = field.getSourceBlock();
+  const parent = src && (src.isShadow() || src.type === 'math_number') ? src.getParent() : src;
+  const kind = (parent && NUM_KIND[parent.type]) || ['Яке число?', [0, 1, 5, 10, 100], 1, ''];
+  $('numTitle').textContent = kind[0];
+  $('numHint').textContent = kind[3];
+  $('numIn').value = field.getValue();
+  $('numIn').dataset.step = kind[2];
+  $('numPresets').innerHTML = kind[1].map(v => `<button data-v="${v}">${v}</button>`).join('');
+  markPreset();
+  $('numBox').classList.add('show');
+}
+function markPreset() { const v = +$('numIn').value; $('numPresets').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === v)); }
+function closeNumPad(apply) {
+  if (apply && numField) {
+    const v = parseFloat(String($('numIn').value).replace(',', '.'));
+    if (!isNaN(v)) numField.setValue(v);
+  }
+  numField = null; $('numBox').classList.remove('show');
+}
+$('numPresets').onclick = e => { const b = e.target.closest('button'); if (!b) return; $('numIn').value = b.dataset.v; closeNumPad(true); };
+const stepNum = d => { const st = +$('numIn').dataset.step || 1; const v = (parseFloat($('numIn').value) || 0) + d * st; $('numIn').value = Math.round(v * 100) / 100; markPreset(); };
+$('numMinus').onclick = () => stepNum(-1);
+$('numPlus').onclick = () => stepNum(1);
+$('numIn').oninput = markPreset;
+$('numIn').onkeydown = e => { if (e.key === 'Enter') closeNumPad(true); };
+$('numOk').onclick = () => closeNumPad(true);
+$('numClose').onclick = () => closeNumPad(false);
+$('numBox').addEventListener('click', e => { if (e.target.id === 'numBox') closeNumPad(false); });
+$('bkTipX').onclick = () => { S.tipDone = 1; save(); $('bkTip').hidden = true; };
+
 function initBlockly() {
   if (!blocklyOk) { $('blocksOff').hidden = false; $('blocksOff').innerHTML = '<div><p>Не вдалося завантажити блоки (немає інтернету?).</p><p class="muted">Можна програмувати на Python у вкладці «Код».</p></div>'; return; }
   TankBlocks.setupTankBlocks(Blockly, python);
+  // числа в блоках редагуємо у великому зручному вікні, а не в крихітному полі
+  Blockly.FieldNumber.prototype.showEditor_ = function () { if (this.getSourceBlock() && this.getSourceBlock().isInFlyout) return; openNumPad(this); };
   const theme = Blockly.Theme.defineTheme('tanky', {
     base: Blockly.Themes.Classic,
     componentStyles: { workspaceBackgroundColour: '#16201a', toolboxBackgroundColour: '#1b241e', toolboxForegroundColour: '#e8f0ea', flyoutBackgroundColour: '#232f27', flyoutForegroundColour: '#e8f0ea', flyoutOpacity: 0.97, scrollbarColour: '#3a4a3f', insertionMarkerColour: '#fff', insertionMarkerOpacity: 0.3 },
@@ -215,18 +551,85 @@ function initBlockly() {
   const small = window.innerWidth < 600;
   ws = Blockly.inject('blockly', {
     toolbox: TankBlocks.TOOLBOX, renderer: 'zelos', theme,
-    zoom: { controls: true, wheel: true, startScale: small ? 0.62 : 0.8, maxScale: 2, minScale: 0.3, scaleSpeed: 1.15, pinch: true },
+    zoom: { controls: false, wheel: true, startScale: small ? 0.62 : 0.8, maxScale: 2, minScale: 0.3, scaleSpeed: 1.15, pinch: true },
     move: { scrollbars: true, drag: true, wheel: true },
     media: 'https://cdn.jsdelivr.net/npm/blockly@12.5.1/media/', sounds: false,
-    trashcan: true, grid: { spacing: 24, length: 2, colour: '#22302a', snap: true },
+    trashcan: false, grid: { spacing: 24, length: 2, colour: '#22302a', snap: true },
   });
+  // власні великі кнопки замість вбудованих (ті на телефонах малюються криво)
+  $('bkTools').hidden = false;
+  $('bkTools').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const a = b.dataset.a;
+    if (a === 'in') ws.zoomCenter(1);
+    if (a === 'out') ws.zoomCenter(-1);
+    if (a === 'fit') { ws.zoomToFit(); if (ws.getScale() > 0.75) ws.setScale(0.75); ws.scrollCenter(); }
+    if (a === 'undo') ws.undo(false);
+    if (a === 'redo') ws.undo(true);
+  };
   try { Blockly.serialization.workspaces.load(S.blocks || TankBlocks.STARTER_BLOCKS, ws); }
   catch (e) { Blockly.serialization.workspaces.load(TankBlocks.STARTER_BLOCKS, ws); }
+  unstackBlocks();
+  // панель дій для вибраного блоку (замість прихованого «натисни й тримай»)
+  let selBlock = null, barBusy = false;
+  // не даємо натиску на панель зняти вибір із блоку
+  ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => $('bkSel').addEventListener(ev, e => { barBusy = true; e.stopPropagation(); if (ev !== 'touchstart') e.preventDefault(); }, { passive: false }));
+  document.addEventListener('pointerup', () => { if (barBusy) setTimeout(() => { barBusy = false; }, 350); });
+  const selBar = () => {
+    if (barBusy) return;
+    const b = Blockly.getSelected && Blockly.getSelected();
+    selBlock = b || null;
+    const ok = b && b.workspace === ws && !b.isInFlyout && b.isDeletable && b.isDeletable();
+    $('bkSel').hidden = !ok;
+    if (!ok) return;
+    const isEvent = b.type.startsWith('tank_ev_');
+    $('bkSel').querySelector('[data-s=dup]').hidden = isEvent;
+    $('bkSelT').textContent = isEvent ? 'Подію вибрано' : 'Блок вибрано';
+  };
+  $('bkSel').onclick = e => {
+    barBusy = false;
+    const btn = e.target.closest('button'); if (!btn) return;
+    const b = selBlock && !selBlock.isDeadOrDying() ? selBlock : null;
+    if (btn.dataset.s === 'close' || !b) { b && b.unselect && b.unselect(); $('bkSel').hidden = true; return; }
+    if (btn.dataset.s === 'del') {
+      Blockly.Events.setGroup(true); b.dispose(true, true); Blockly.Events.setGroup(false);
+      selBlock = null; $('bkSel').hidden = true;
+    }
+    if (btn.dataset.s === 'dup') {
+      const json = Blockly.serialization.blocks.save(b, { addNextBlocks: false, addCoordinates: true });
+      const xy = b.getRelativeToSurfaceXY();
+      json.x = xy.x + 30; json.y = xy.y + 30;
+      const nb = Blockly.serialization.blocks.append(json, ws);
+      selBlock = nb; nb.select && nb.select();
+      toast('Копію зроблено — перетягни її, куди треба');
+    }
+  };
   ws.addChangeListener(e => {
+    if (e.type === Blockly.Events.SELECTED || e.type === Blockly.Events.BLOCK_DELETE) setTimeout(selBar, 0);
     if (e.isUiEvent) return;
     clearTimeout(initBlockly.t);
     initBlockly.t = setTimeout(() => { S.blocks = Blockly.serialization.workspaces.save(ws); save(); }, 400);
   });
+}
+// Якщо групи блоків накладаються одна на одну — розставляємо їх стовпчиком
+function unstackBlocks() {
+  const tops = ws.getTopBlocks(true);
+  const boxes = tops.map(b => b.getBoundingRectangle());
+  let overlap = false;
+  for (let i = 0; i < boxes.length && !overlap; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i], c = boxes[j];
+    if (a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom) { overlap = true; break; }
+  }
+  if (!overlap) return;
+  Blockly.Events.disable();
+  let y = 20;
+  for (const b of tops) {
+    const r = b.getBoundingRectangle(), xy = b.getRelativeToSurfaceXY();
+    b.moveBy(20 - xy.x, y - xy.y);
+    y += (r.bottom - r.top) + 36;
+  }
+  Blockly.Events.enable();
+  S.blocks = Blockly.serialization.workspaces.save(ws); save();
 }
 function blocksPython() {
   if (!ws) return { code: S.python || T.STARTER_PY, loose: 0 };
@@ -238,13 +641,13 @@ function setMode(m) {
   $('blocksOff').hidden = blocklyOk ? m !== 'python' : false;
   renderCodeTab();
 }
-$('backToBlocks').onclick = () => {
-  if (!confirm('Повернутися до блоків? Твій Python-код збережеться, але в бою знову працюватимуть блоки.')) return;
+$('backToBlocks').onclick = async () => {
+  if (!await ask('Повернутися до блоків? Твій Python-код збережеться, але в бою знову працюватимуть блоки.', 'Повернутися')) return;
   setMode('blocks'); showTab('blocks');
 };
 $('pyToBlocks').onclick = () => $('backToBlocks').onclick();
-$('toPython').onclick = () => {
-  if (!confirm('Перейти на Python? Код з’явиться в редакторі, далі ти пишеш сам. Блоки залишаться, але не впливатимуть на танк.')) return;
+$('toPython').onclick = async () => {
+  if (!await ask('Перейти на Python? Код з’явиться в редакторі, далі ти пишеш сам. Блоки залишаться, але не впливатимуть на танк.', 'Перейти')) return;
   S.python = blocksPython().code; setMode('python'); renderCodeTab(); ed.value = S.python; edChanged();
 };
 
@@ -371,59 +774,102 @@ function onEnd(res) {
 function renderPalette() {
   $('palette').innerHTML = COLORS.map(c => `<button style="background:${c}" class="${c === S.color ? 'sel' : ''}" data-c="${c}" aria-label="колір"></button>`).join('');
 }
-$('palette').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.color = b.dataset.c; save(); renderPalette(); renderChip(); };
+$('palette').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.color = b.dataset.c; save(); renderPalette(); renderChip(); refreshSent(); };
 for (const [id, k] of [['fAuthor', 'author'], ['fCls', 'cls'], ['fName', 'name']]) {
-  $(id).addEventListener('input', () => { S[k] = $(id).value.trim(); save(); renderChip(); $('sendBox').hidden = true; });
+  $(id).addEventListener('input', () => { S[k] = $(id).value.trim(); save(); renderChip(); clearTimeout(renderSend.t); renderSend.t = setTimeout(() => runChecks(true), 300); });
 }
 function renderSend() {
   $('fAuthor').value = S.author; $('fCls').value = S.cls; $('fName').value = S.name;
+  $('copyHelp').hidden = true;
   renderPalette(); renderFriends(); runChecks();
 }
-let checkState = {};
-function runChecks() {
+let checkState = {}, qualCache = { code: null, wins: 0 };
+const botNow = () => ({ name: S.name, author: S.author, cls: S.cls, color: S.color, league: S.mode, code: currentCode() });
+const botHash = b => T.hashStr([b.name, b.author, b.cls, b.color, b.code].join('|'));
+function runChecks(onlyProfile) {
   const code = currentCode();
   const c = T.compileBot(code);
   checkState = { profile: !!(S.author && S.cls && S.name), compiles: c.ok, events: c.ok && c.events.length > 0 };
   // кваліфікація: перемогти «Мішень» хоча б у 2 з 3 боїв
-  let wins = 0;
-  if (c.ok) for (let s = 1; s <= 3; s++) { const r = new T.Battle([{ name: 'я', code }, T.BUILTIN_BOTS[0]], { seed: 777 + s }).runToEnd(); if (r.winner === 0) wins++; }
+  if (qualCache.code !== code) {
+    let wins = 0;
+    if (c.ok) for (let s = 1; s <= 3; s++) { const r = new T.Battle([{ name: 'я', code }, T.BUILTIN_BOTS[0]], { seed: 777 + s }).runToEnd(); if (r.winner === 0) wins++; }
+    qualCache = { code, wins };
+  }
+  const wins = qualCache.wins;
   checkState.qual = wins >= 2;
-  const row = (ok, t, hint) => `<div style="margin:6px 0">${ok ? '✅' : '⬜'} ${t}${!ok && hint ? `<div class="muted" style="font-size:13px;margin-left:28px">${hint}</div>` : ''}</div>`;
+  $('ok1').hidden = !checkState.profile;
+  $('st1').classList.toggle('done', checkState.profile);
+  const row = (ok, good, bad, fix) => `<div class="sd-check ${ok ? 'ok' : 'bad'}"><span>${ok ? '✅' : '❌'}</span><div>${ok ? good : bad}${!ok && fix ? `<div><button class="small" data-fix="${fix[0]}">${fix[1]}</button></div>` : ''}</div></div>`;
+  const errLine = c.ok ? '' : ` <span class="muted">(${c.error.line ? 'рядок ' + c.error.line + ': ' : ''}${esc(c.error.msg)})</span>`;
   $('checks').innerHTML =
-    row(checkState.profile, 'Заповнено ім’я, клас і назву танка', 'Заповни поля вище.') +
-    row(checkState.compiles, 'Програма без помилок', c.ok ? '' : `${c.error.line ? 'Рядок ' + c.error.line + ': ' : ''}${esc(c.error.msg)}`) +
-    row(checkState.events, 'Є хоча б одна подія («коли бій почався», «коли бачу ворога»…)', 'Без подій танк нічого не робитиме.') +
-    row(checkState.qual, `Кваліфікація: перемогти «Мішень» (${wins} з 3)`, 'Твій танк має знаходити ворога і стріляти. Спробуй крутити гармату й стріляти, коли бачиш ворога.');
+    row(checkState.compiles, 'Програма без помилок', 'У програмі є помилка' + errLine, [S.mode === 'python' ? 'code' : 'blocks', '🔧 Виправити']) +
+    (checkState.compiles ? row(checkState.events, 'Танк уміє реагувати на події', 'Немає жодного блоку «коли …» — танк нічого не робитиме', [S.mode === 'python' ? 'code' : 'blocks', '🧩 Додати подію']) : '') +
+    (checkState.events ? row(checkState.qual, `Перемагає «Мішень» (${wins} з 3) — кваліфікацію пройдено`, `Ще не перемагає «Мішень» (${wins} з 3). Танк має крутити гармату й стріляти, коли бачить ворога`, ['train', '⚔️ Потренуватись']) : '');
+  const ready = checkState.compiles && checkState.events;
+  $('ok2').hidden = !(ready && checkState.qual);
+  $('st2').classList.toggle('done', ready && checkState.qual);
+  const can = checkState.profile && ready;
+  $('st3').classList.toggle('locked', !can);
+  for (const id of ['sendMain', 'mailCode', 'copyCode', 'dlCode']) $(id).disabled = !can;
+  $('sendMain').textContent = !checkState.profile ? '⬆ Спершу заповни крок 1' : !ready ? '⬆ Спершу виправ крок 2' : '📤 Надіслати вчителю';
+  refreshSent();
 }
-$('makeCode').onclick = async () => {
-  runChecks();
-  if (!checkState.profile) { toast('Спершу заповни ім’я, клас і назву'); return; }
-  if (!checkState.compiles) { toast('У програмі є помилка'); return; }
-  if (!checkState.qual && !confirm('Танк ще не пройшов кваліфікацію (не перемагає «Мішень»). Все одно підготувати код?')) return;
-  const bot = { name: S.name, author: S.author, cls: S.cls, color: S.color, league: S.mode, code: currentCode() };
-  const code = await T.encodeBot(bot);
-  $('botCode').value = code; $('sendBox').hidden = false;
-  $('botCode').scrollIntoView({ behavior: 'smooth', block: 'center' });
+$('checks').onclick = e => {
+  const b = e.target.closest('[data-fix]'); if (!b) return;
+  if (b.dataset.fix === 'train') { if (!S.opp.includes('target')) { S.opp = ['target']; save(); } }
+  showTab(b.dataset.fix);
 };
+function refreshSent() {
+  const el = $('sentInfo');
+  if (!S.sent) { el.innerHTML = ''; return; }
+  const d = new Date(S.sent.at);
+  const when = d.toDateString() === new Date().toDateString() ? `сьогодні о ${d.toTimeString().slice(0, 5)}` : d.toLocaleDateString('uk-UA') + ' о ' + d.toTimeString().slice(0, 5);
+  const changed = S.sent.hash !== botHash(botNow());
+  el.innerHTML = changed
+    ? `<div class="sd-sent warn">⚠ Ти змінив танк після відправки (${when}). Надішли ще раз, щоб у турнірі була нова версія.</div>`
+    : `<div class="sd-sent">✅ Надіслано ${when}. Якщо вчитель отримав — усе готово!</div>`;
+}
+function markSent() { S.sent = { at: Date.now(), hash: botHash(botNow()) }; save(); refreshSent(); }
+async function makeBotCode() {
+  if (!checkState.qual && !await ask('Танк ще не перемагає «Мішень». Вчитель може не допустити його до турніру. Все одно надіслати?', 'Надіслати', true)) return null;
+  const code = await T.encodeBot(botNow());
+  $('botCode').value = code;
+  return code;
+}
 async function copyText(t) {
   try { await navigator.clipboard.writeText(t); return true; }
-  catch (e) { const ta = $('botCode'); ta.focus(); ta.select(); try { return document.execCommand('copy'); } catch (e2) { return false; } }
+  catch (e) { const ta = $('botCode'); ta.closest('details').open = true; ta.focus(); ta.select(); try { return document.execCommand('copy'); } catch (e2) { return false; } }
 }
 const subj = () => `Танк «${S.name}» — ${S.author}, ${S.cls}`;
-$('copyCode').onclick = async () => toast(await copyText($('botCode').value) ? '📋 Скопійовано' : 'Виділи код і скопіюй вручну');
-$('shareCode').onclick = async () => {
-  const text = `${subj()}\n${$('botCode').value}`;
-  if (navigator.share) { try { await navigator.share({ title: subj(), text }); } catch (e) {} }
-  else toast(await copyText(text) ? '📋 Скопійовано — встав у месенджер' : 'Скопіюй вручну');
+$('sendMain').onclick = async () => {
+  const code = await makeBotCode(); if (!code) return;
+  const text = `${subj()}\n${code}`;
+  if (navigator.share) {
+    try { await navigator.share({ title: subj(), text }); markSent(); toast('📤 Надіслано!'); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  // немає «Поділитися» — копіюємо і пояснюємо, що робити
+  if (await copyText(text)) { $('copyHelp').hidden = false; markSent(); }
+  else { $('botCode').closest('details').open = true; toast('Виділи код нижче і скопіюй його'); }
 };
-$('mailCode').onclick = () => {
-  location.href = `mailto:${TEACHER_EMAIL}?subject=${encodeURIComponent(subj())}&body=${encodeURIComponent($('botCode').value + '\n')}`;
+$('copyCode').onclick = async () => {
+  const code = await makeBotCode(); if (!code) return;
+  if (await copyText(`${subj()}\n${code}`)) { $('copyHelp').hidden = false; markSent(); }
+  else toast('Виділи код нижче і скопіюй вручну');
 };
-$('dlCode').onclick = () => {
-  const blob = new Blob([JSON.stringify({ name: S.name, author: S.author, cls: S.cls, color: S.color, league: S.mode, code: currentCode() }, null, 1)], { type: 'application/json' });
+$('mailCode').onclick = async () => {
+  const code = await makeBotCode(); if (!code) return;
+  markSent();
+  location.href = `mailto:${TEACHER_EMAIL}?subject=${encodeURIComponent(subj())}&body=${encodeURIComponent(code + '\n')}`;
+};
+$('dlCode').onclick = async () => {
+  const code = await makeBotCode(); if (!code) return;
+  const blob = new Blob([JSON.stringify(botNow(), null, 1)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `${S.cls}_${S.author}_${S.name}.tank.json`.replace(/[\\/:*?"<>|\s]+/g, '_'); a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  markSent(); toast('💾 Файл збережено — надішли його вчителю');
 };
 
 async function readImport(text) {
@@ -440,15 +886,6 @@ $('addFriend').onclick = async () => {
     save(); $('importText').value = ''; renderFriends(); toast(`➕ Додано: ${bots.map(b => b.name).join(', ')}`);
   } catch (e) { toast('⚠ ' + e.message); }
 };
-$('openOwn').onclick = async () => {
-  try {
-    const [b] = await readImport($('importText').value);
-    if (!confirm(`Замінити свій танк на «${b.name}»? Поточна програма зникне з цього телефона.`)) return;
-    Object.assign(S, { name: b.name, author: b.author, cls: b.cls, color: b.color, python: b.code });
-    S.mode = 'python';
-    save(); $('importText').value = ''; setMode('python'); renderSend(); toast('📂 Відкрито');
-  } catch (e) { toast('⚠ ' + e.message); }
-};
 $('importFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   $('importText').value = await f.text(); e.target.value = '';
@@ -459,10 +896,12 @@ function renderFriends() {
     `<div class="row" style="justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)"><span><span class="dot" style="display:inline-block;background:${f.color}"></span> ${esc(f.name)} <span class="muted">${esc(f.author)} ${esc(f.cls)}</span></span><button class="small ghost" data-del="${i}">✕</button></div>`).join('') : '';
 }
 $('friends').onclick = e => { const b = e.target.closest('[data-del]'); if (!b) return; S.friends.splice(+b.dataset.del, 1); S.opp = S.opp.filter(k => !k.startsWith('f')); save(); renderFriends(); };
-$('resetAll').onclick = () => {
-  if (!confirm('Точно видалити свій танк і почати заново?')) return;
+$('resetAll').onclick = async () => {
+  if (!await ask(`Почати новий танк? «${S.name || 'Мій танк'}» буде видалено з цього телефона.`, 'Так, новий танк', true)) return;
   const keep = { author: S.author, cls: S.cls, friends: S.friends };
-  localStorage.removeItem(KEY); S = Object.assign(load(), keep, { fresh: false }); save(); location.reload();
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  const fresh = { v: 1, name: '', color: S.color, mode: 'blocks', blocks: null, python: T.STARTER_PY, opp: ['target'], fresh: true };
+  S = Object.assign(fresh, keep); save(); location.reload();
 };
 
 /* ===== Довідка ===== */
@@ -471,6 +910,133 @@ function renderHelp() {
   const act = Object.entries(T.API).filter(([, a]) => a.gen).map(([n, a]) => `<dt>${n}(${a.max ? (a.min ? 'n' : '[n]') : ''})</dt><dd>${a.doc}</dd>`).join('');
   const sens = Object.entries(T.API).filter(([, a]) => !a.gen).map(([n, a]) => `<dt>${n}(${a.max === 2 ? 'a, b' : a.max ? 'текст' : ''})</dt><dd>${a.doc}</dd>`).join('');
   $('helpBox').innerHTML = `
+  <div class="ig-hero">
+    <div class="ig-kick">Головна ідея</div>
+    <h2>Ти — конструктор, а не водій</h2>
+    <div class="ig-two">
+      <div class="ig-side"><div class="ig-big">✍️</div><b>До бою</b><span>ти пишеш програму: як їздити, як шукати ворога, коли стріляти</span></div>
+      <div class="ig-arrow" aria-hidden="true">→</div>
+      <div class="ig-side"><div class="ig-big">🤖</div><b>У бою</b><span>танк діє сам. Натиснути кнопку чи підказати вже не можна</span></div>
+    </div>
+    <p class="ig-note">Перемагає не найшвидший палець, а найрозумніша програма.</p>
+  </div>
+
+  <div class="card">
+    <h2>🔁 Цикл гравця</h2>
+    <p class="muted" style="margin-top:-4px">Пройди коло кілька разів — з кожним разом танк сильнішає.</p>
+    <svg class="ig-cycle" viewBox="0 0 340 340" role="img" aria-label="Цикл: будуй, тренуй, дивись, що сталося, покращуй — і знову будуй">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9db0a2"/></marker></defs>
+      <g fill="none" stroke="#9db0a2" stroke-width="3" marker-end="url(#ah)">
+        <path d="M216.8 64.9 A115 115 0 0 1 275.1 123.2"/>
+        <path d="M275.1 216.8 A115 115 0 0 1 216.8 275.1"/>
+        <path d="M123.2 275.1 A115 115 0 0 1 64.9 216.8"/>
+        <path d="M64.9 123.2 A115 115 0 0 1 123.2 64.9"/>
+      </g>
+      <g text-anchor="middle" font-family="system-ui, sans-serif">
+        <circle cx="170" cy="55" r="47" fill="#24361f" stroke="#8bc34a" stroke-width="3"/>
+        <text x="170" y="52" font-size="26">🧩</text><text x="170" y="76" font-size="13" font-weight="700" fill="#e8f0ea">1 Будуй</text>
+        <circle cx="285" cy="170" r="47" fill="#3a2418" stroke="#ff7043" stroke-width="3"/>
+        <text x="285" y="167" font-size="26">⚔️</text><text x="285" y="191" font-size="13" font-weight="700" fill="#e8f0ea">2 Тренуй</text>
+        <circle cx="170" cy="285" r="47" fill="#14303d" stroke="#4fc3f7" stroke-width="3"/>
+        <text x="170" y="282" font-size="26">👀</text><text x="170" y="306" font-size="13" font-weight="700" fill="#e8f0ea">3 Дивись</text>
+        <circle cx="55" cy="170" r="47" fill="#3a2f10" stroke="#ffb300" stroke-width="3"/>
+        <text x="55" y="167" font-size="26">🔧</text><text x="55" y="191" font-size="13" font-weight="700" fill="#e8f0ea">4 Покращуй</text>
+        <text x="170" y="164" font-size="15" font-weight="800" fill="#8bc34a">ПОВТОРЮЙ</text>
+        <text x="170" y="184" font-size="12" fill="#9db0a2">поки танк не</text>
+        <text x="170" y="199" font-size="12" fill="#9db0a2">почне вигравати</text>
+      </g>
+    </svg>
+    <ol class="ig-steps">
+      <li><b style="color:#8bc34a">Будуй.</b> Склади програму з блоків або напиши код.</li>
+      <li><b style="color:#ff7043">Тренуй.</b> Запусти бій із ботом. Почни з «Мішені», далі Крутько, Стіноход, Мисливець.</li>
+      <li><b style="color:#4fc3f7">Дивись.</b> Чи бачив ворога? Чи влучав? Застряг біля стіни? Загляни в журнал.</li>
+      <li><b style="color:#ffb300">Покращуй.</b> Зміни одну річ і перевір знову.</li>
+    </ol>
+    <div class="ig-finish">
+      <span>Танк перемагає «Мішень»?</span>
+      <span class="ig-chain"><b>📤 Здай вчителю</b> → <b>🏟 Турнір</b> → <b>🏆</b></span>
+      <span class="muted" style="font-size:13px">Здати можна скільки завгодно разів — у турнірі буде остання версія.</span>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="small" data-go="blocks">🧩 Будувати</button>
+      <button class="small" data-go="train">⚔️ Тренуватись</button>
+      <button class="small" data-go="send">📤 Здати</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧠 Як думає танк</h2>
+    <p class="muted" style="margin-top:-4px">Програма танка — це <b>головний цикл</b>, який крутиться весь бій, і <b>події</b>, які його ненадовго переривають.</p>
+    <div class="ig-brain">
+      <div class="ig-loop">
+        <div class="ig-hat" style="background:#e6a100">🚩 коли бій почався</div>
+        <div class="ig-forever">
+          <div class="ig-fh">🔁 повторювати завжди</div>
+          <div class="ig-cmd" style="background:#2e9e5b">їхати вперед 100</div>
+          <div class="ig-cmd" style="background:#d84a3c">гармату праворуч 360°</div>
+          <div class="ig-cmd" style="background:#2e9e5b">їхати назад 100</div>
+          <div class="ig-back">↺ і знову спочатку</div>
+        </div>
+        <div class="ig-cap">Головний цикл — «звичайне життя» танка: їздити і шукати ворога</div>
+      </div>
+      <div class="ig-events">
+        <div class="ig-ev"><div class="ig-hat" style="background:#e6a100">👁 коли бачу ворога</div><div class="ig-cmd" style="background:#d84a3c">💥 вогонь!</div></div>
+        <div class="ig-ev"><div class="ig-hat" style="background:#e6a100">💥 коли в мене влучили</div><div class="ig-cmd" style="background:#2e9e5b">повернути і втекти</div></div>
+        <div class="ig-ev"><div class="ig-hat" style="background:#e6a100">🧱 коли вдарився в стіну</div><div class="ig-cmd" style="background:#2e9e5b">назад і повернути</div></div>
+        <div class="ig-cap">Події — реакції. Спрацьовують самі, коли щось сталося</div>
+      </div>
+    </div>
+    <h3 style="margin:16px 0 8px">Як це виглядає в бою</h3>
+    <div class="ig-tl">
+      <span class="m" style="flex:2.2">вперед</span>
+      <span class="m" style="flex:2.2">гармата<br>↻</span>
+      <span class="e" style="flex:2">👁<br>вогонь!</span>
+      <span class="m" style="flex:2.2">гармата<br>↻</span>
+      <span class="m" style="flex:2">назад</span>
+      <span class="e r" style="flex:2">💥<br>тікаю</span>
+      <span class="m" style="flex:2">вперед</span>
+    </div>
+    <div class="ig-tlcap"><span>початок бою</span><span>час →</span></div>
+    <div class="ig-legend">
+      <span><i style="background:#2e7d4f"></i>головний цикл</span>
+      <span><i style="background:#e6a100"></i>подія перервала цикл</span>
+    </div>
+    <p style="margin-bottom:0">Після події танк <b>повертається туди, де зупинився</b>, і крутить цикл далі. Якщо в головному циклі нічого немає — танк просто стоїть і чекає подій.</p>
+  </div>
+
+  <div class="card">
+    <h2>📡 Радар = гармата</h2>
+    <div class="ig-radar">
+      <svg viewBox="0 0 220 150" role="img" aria-label="Танк крутить гармату, промінь радара знаходить ворога">
+        <path d="M60 95 L215 25 L215 85 Z" fill="#8bc34a" fill-opacity=".18"/>
+        <g transform="translate(60 95)"><rect x="-17" y="-18" width="8" height="36" fill="#222"/><rect x="9" y="-18" width="8" height="36" fill="#222"/><rect x="-10" y="-15" width="20" height="30" fill="#4caf50"/><g transform="rotate(66)"><rect x="-3" y="-28" width="6" height="24" fill="#ddd"/><circle r="8" fill="#2e7d32"/></g></g>
+        <g transform="translate(185 55)"><rect x="-17" y="-18" width="8" height="36" fill="#222"/><rect x="9" y="-18" width="8" height="36" fill="#222"/><rect x="-10" y="-15" width="20" height="30" fill="#e91e63"/><circle r="8" fill="#a3134a"/></g>
+        <text x="185" y="98" text-anchor="middle" font-size="12" fill="#ffb300" font-family="system-ui">бачу! 👁</text>
+        <path d="M30 128 A40 40 0 0 1 100 128" fill="none" stroke="#9db0a2" stroke-width="2" marker-end="url(#ah)"/>
+        <text x="65" y="146" text-anchor="middle" font-size="11" fill="#9db0a2" font-family="system-ui">крути гармату</text>
+      </svg>
+      <div>
+        <p style="margin-top:0">Танк <b>бачить лише туди, куди дивиться гармата</b>.</p>
+        <p>Тому в головному циклі крути гармату. Щойно промінь торкнеться ворога, спрацює <b>«коли бачу ворога»</b>.</p>
+        <p class="muted" style="margin-bottom:0">Найпростіший робочий танк: крутити гармату + стріляти, коли бачиш.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔋 Енергія — це все</h2>
+    <div class="ig-energy">
+      <div><b>100</b><span>енергії на старті</span></div>
+      <div class="neg"><b>−сила</b><span>коштує постріл</span></div>
+      <div class="pos"><b>+3×сила</b><span>тобі, якщо влучив</span></div>
+      <div class="neg"><b>−4×сила</b><span>ворогу від влучання</span></div>
+      <div class="neg"><b>−0.5</b><span>удар об стіну</span></div>
+      <div class="dead"><b>0</b><span>танк вибув</span></div>
+    </div>
+    <p class="muted" style="margin-bottom:0">Влучати вигідно: ти отримуєш більше, ніж витратив. Промахуватись — дорого. Ховатися весь бій не вийде: якщо довго ніхто не влучає, енергія тане в усіх.</p>
+  </div>
+
+  <h2 style="margin:22px 4px 10px">📖 Довідник</h2>
   <div class="card"><h2>Як це працює</h2>
     <p>Твій танк <b>сам</b> виконує програму. На полі ${T.CFG.W}×${T.CFG.H} кроків б’ються кілька танків. У кожного <b>100 енергії</b>. Влучання забирає енергію у ворога, а тобі частину повертає. Постріл теж коштує енергії. Енергія 0 — танк вибув.</p>
     <p><b>Радар дивиться туди ж, куди гармата.</b> Щоб знайти ворога, крути гармату. Коли радар бачить ворога, спрацьовує подія «коли бачу ворога».</p>
@@ -491,6 +1057,124 @@ function renderHelp() {
   <p class="muted" style="text-align:center">Для вчителя: <a href="arena.html">🏟 Арена боїв</a></p>`;
 }
 
+$('helpBox').addEventListener('click', e => {
+  const b = e.target.closest('[data-go]'); if (!b) return;
+  showTab(b.dataset.go === 'blocks' && S.mode === 'python' ? 'code' : b.dataset.go);
+});
+
+/* ===== Збереження танка на телефон і відновлення ===== */
+const storageOk = (() => { try { localStorage.setItem('tanky.test', '1'); localStorage.removeItem('tanky.test'); return true; } catch (e) { return false; } })();
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+function tankSnapshot() {
+  const snap = { name: S.name || 'Мій танк', author: S.author, cls: S.cls, color: S.color, league: S.mode, code: currentCode() };
+  if (S.mode === 'blocks' && ws) snap.blocks = Blockly.serialization.workspaces.save(ws);
+  return snap;
+}
+const snapHash = () => { const s2 = tankSnapshot(); return T.hashStr([s2.name, s2.author, s2.cls, s2.color, s2.league, s2.code].join('|')); };
+function whenStr(t) {
+  const d = new Date(t), hm = d.toTimeString().slice(0, 5);
+  return d.toDateString() === new Date().toDateString() ? `сьогодні о ${hm}` : `${d.toLocaleDateString('uk-UA')} о ${hm}`;
+}
+function renderTankBox() {
+  const has = !S.fresh;
+  $('tbSaveSec').hidden = !has;
+  $('tbWarn').innerHTML = storageOk ? '' : '<div class="tb-warn">⚠ Цей браузер не запам’ятовує танк (можливо, анонімне вікно). Обов’язково збережи його перед тим, як закрити сайт!</div>';
+  if (!has) { $('tbSaved').innerHTML = ''; return; }
+  $('tbSaved').innerHTML = !S.savedAt ? '<div class="sd-sent warn">Копії ще немає — збережи зараз 👇</div>'
+    : S.savedHash !== snapHash() ? `<div class="sd-sent warn">⚠ Ти змінив танк після збереження (${whenStr(S.savedAt)}). Збережи ще раз.</div>`
+    : `<div class="sd-sent">✅ Копію збережено ${whenStr(S.savedAt)}</div>`;
+}
+function openTankBox() { $('tbHelp').hidden = true; $('tbPaste').value = ''; renderTankBox(); $('tankBox').classList.add('show'); }
+$('tbClose').onclick = () => $('tankBox').classList.remove('show');
+$('tankBox').addEventListener('click', e => { if (e.target.id === 'tankBox') $('tankBox').classList.remove('show'); });
+$('sdSaveBtn').onclick = openTankBox;
+function markSaved() { S.savedAt = Date.now(); S.savedHash = snapHash(); save(); renderTankBox(); }
+const pageUrl = () => location.origin + location.pathname;
+$('tbLink').onclick = async () => {
+  const code = await T.encodeBot(tankSnapshot());
+  const url = `${pageUrl()}#tank=${code}`;
+  const title = `Мій танк «${S.name || 'Мій танк'}»`;
+  if (navigator.share) {
+    try { await navigator.share({ title, text: `${title} — відкрий посилання, щоб повернути танк`, url }); markSaved(); toast('🔗 Посилання надіслано'); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); }
+  catch (e) { $('tbPaste').value = url; $('tbPaste').select(); try { document.execCommand('copy'); } catch (e2) {} }
+  $('tbHelp').innerHTML = '<b>Посилання скопійовано!</b> Відкрий Telegram → «Збережене» (або чат із собою у Viber) → потримай палець на полі → <b>«Вставити»</b> → надішли.';
+  $('tbHelp').hidden = false; markSaved();
+};
+$('tbFile').onclick = async () => {
+  const snap = tankSnapshot();
+  const code = await T.encodeBot(snap);
+  const text = `Танкова Арена — збережений танк «${snap.name}» (${snap.author}, ${snap.cls})\nЗбережено: ${new Date().toLocaleString('uk-UA')}\nЯк відновити: відкрий ${pageUrl()} → «Відкрити збережений танк» → вибери цей файл.\n\n${code}\n`;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `Танк_${snap.name}.txt`.replace(/[\\/:*?"<>|\s]+/g, '_'); document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  markSaved(); toast('💾 Файл у «Завантаженнях» телефона');
+};
+$('tbPick').onclick = () => $('tbFileIn').click();
+$('tbFileIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  restoreFromText(await f.text());
+};
+$('tbPasteGo').onclick = () => restoreFromText($('tbPaste').value);
+async function restoreFromText(text) {
+  let bot;
+  try {
+    const codes = T.findBotCodes(text || '');
+    if (codes.length) bot = await T.decodeBot(codes[codes.length - 1]);
+    else if ((text || '').trim().startsWith('{')) bot = T.normBot(JSON.parse(text));
+    else throw new Error();
+  } catch (e) { toast('⚠ Не вдалося прочитати танк. Перевір файл або посилання'); return; }
+  if (!S.fresh && !await ask(`Відкрити танк «${bot.name}»? Поточний «${S.name || 'Мій танк'}» буде замінено.`, 'Відкрити', true)) return;
+  applyTank(bot);
+}
+function applyTank(b) {
+  Object.assign(S, { name: b.name, author: b.author || S.author, cls: b.cls || S.cls, color: b.color, fresh: false, sent: null });
+  if (b.blocks && b.league !== 'python' && blocklyOk && ws) {
+    S.mode = 'blocks'; S.blocks = b.blocks;
+    ws.clear();
+    try { Blockly.serialization.workspaces.load(b.blocks, ws); } catch (e) { Blockly.serialization.workspaces.load(TankBlocks.STARTER_BLOCKS, ws); }
+    unstackBlocks();
+  } else { S.mode = 'python'; S.python = b.code; ed.value = b.code; }
+  S.savedAt = Date.now(); S.savedHash = null;
+  save();
+  S.savedHash = snapHash(); save();
+  ['tankBox', 'welcome'].forEach(id => $(id).classList.remove('show'));
+  closeSplash(); $('introCta').hidden = true;
+  setMode(S.mode); renderChip();
+  showTab(S.mode === 'python' ? 'code' : 'blocks');
+  toast(`📂 Танк «${S.name}» відкрито!`);
+}
+async function restoreFromHash() {
+  const m = location.hash.match(/tank=(TNK[01][A-Za-z0-9_-]+)/);
+  if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  await restoreFromText(m[1]);
+}
+
+/* ===== Заставка: справжній бій вбудованих ботів на фоні ===== */
+let splashPlayer = null;
+function openSplash() {
+  $('splash').hidden = false;
+  const bots = T.BUILTIN_BOTS.filter(b => b.id !== 'target').map(b => ({ name: b.name, color: b.color, code: b.code }));
+  bots.push({ name: 'Ти?', color: '#8bc34a', code: T.BUILTIN_BOTS[3].code });
+  let n = 1;
+  splashPlayer = new T.BattlePlayer($('splashCv'), {
+    onEnd: () => setTimeout(() => { if (splashPlayer) splashPlayer.load(new T.Battle(bots, { seed: ++n * 97 })); }, 1200),
+  });
+  // полотно — у пропорціях арени, по висоті екрана
+  const fit = () => { const c = $('splashCv'); c.style.height = Math.max(innerHeight, innerWidth * T.CFG.H / T.CFG.W) + 'px'; c.style.width = 'auto'; splashPlayer && splashPlayer._resize(); };
+  fit(); addEventListener('resize', fit);
+  splashPlayer.speed = 1.5;
+  splashPlayer.load(new T.Battle(bots, { seed: 97 }));
+}
+function closeSplash() {
+  $('splash').hidden = true;
+  if (splashPlayer) { splashPlayer.battle = null; splashPlayer.paused = true; splashPlayer = null; }
+}
+
 /* ===== Старт ===== */
 function start() {
   initBlockly();
@@ -500,18 +1184,40 @@ function start() {
   renderChip(); renderHelp(); renderOpp();
   if (!blocklyOk) showTab('code');
   if (S.fresh) {
-    $('welcome').classList.add('show');
+    // перший візит: заставка з живим боєм → (за бажанням «Як грати») → анкета
+    const openForm = () => { closeSplash(); $('welcome').classList.add('show'); };
+    $('introGo').onclick = openForm;
+    $('splashGo').onclick = openForm;
+    $('splashHow').onclick = () => { closeSplash(); $('introCta').hidden = false; showTab('help'); };
+    openSplash();
     $('wAuthor').value = S.author; $('wCls').value = S.cls; $('wName').value = S.name;
     const done = mode => {
       S.author = $('wAuthor').value.trim(); S.cls = $('wCls').value.trim(); S.name = $('wName').value.trim() || 'Мій танк';
       S.fresh = false; save(); $('welcome').classList.remove('show');
+      $('introCta').hidden = true;
+      $('tab-help').scrollTop = 0;
       if (mode === 'python') { S.python = T.STARTER_PY; ed.value = S.python; setMode('python'); showTab('code'); }
       else { setMode('blocks'); showTab('blocks'); }
       renderChip();
     };
     $('wBlocks').onclick = () => done('blocks');
     $('wPython').onclick = () => done('python');
-  } else if (S.mode === 'python') showTab('code');
+    $('welcome').onclick = e => { if (e.target.id === 'welcome') { $('welcome').classList.remove('show'); $('introCta').hidden = false; showTab('help'); } };
+  } else {
+    // повторний візит: заставка з пропозицією продовжити
+    if (S.mode === 'python') showTab('code');
+    $('spCont').hidden = false; $('splashNew').hidden = false;
+    $('spDot').style.background = S.color;
+    $('spName').textContent = (S.name || 'Мій танк') + (S.mode === 'python' ? ' · 🐍 Python' : ' · 🧩 Блоки');
+    $('splashGo').textContent = '▶ Продовжити';
+    $('splashGo').onclick = () => { closeSplash(); showTab(S.mode === 'python' ? 'code' : 'blocks'); };
+    $('splashHow').onclick = () => { closeSplash(); showTab('help'); };
+    $('splashNew').onclick = () => $('resetAll').onclick();
+    openSplash();
+  }
+  $('splashOpen').onclick = () => openTankBox();
+  restoreFromHash();
+  if (!storageOk) setTimeout(() => toast('⚠ Браузер не запам’ятовує танк — збережи його кнопкою «Мій танк» угорі'), 1500);
 }
 start();
 </script>

@@ -1375,6 +1375,7 @@ async function pipe(bytes, stream) {
 /** bot: {name, author, cls, color, league, code} → «TNK1…» */
 async function encodeBot(bot) {
   const data = { v: 1, n: bot.name, a: bot.author, c: bot.cls, k: bot.color, l: bot.league, p: bot.code, t: bot.time || Date.now() };
+  if (bot.blocks) data.b = bot.blocks; // повна копія блоків — для збереження/відновлення танка
   const bytes = new TextEncoder().encode(JSON.stringify(data));
   if (typeof CompressionStream !== 'undefined') {
     try { return 'TNK1' + b64u.enc(await pipe(bytes, new CompressionStream('deflate-raw'))); } catch (e) {}
@@ -1393,7 +1394,7 @@ async function decodeBot(str) {
   return normBot(JSON.parse(new TextDecoder().decode(bytes)));
 }
 function normBot(d) {
-  const b = d.p !== undefined ? { name: d.n, author: d.a, cls: d.c, color: d.k, league: d.l, code: d.p, time: d.t } : d;
+  const b = d.p !== undefined ? { name: d.n, author: d.a, cls: d.c, color: d.k, league: d.l, code: d.p, time: d.t, blocks: d.b || null } : d;
   if (typeof b.code !== 'string') throw new Error('У файлі немає програми бота');
   b.name = String(b.name || 'Без назви').slice(0, 30);
   b.author = String(b.author || '').slice(0, 40);
